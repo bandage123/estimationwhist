@@ -52,9 +52,19 @@ shared/
 
 ## Single Player Mode
 - CPU players: Alice, Bob, Charlie, Diana, Edward, Fiona
-- CPU AI calls based on hand strength (high cards, trump cards)
-- CPU plays strategically to win tricks when needed
 - 1-1.5 second delays between CPU moves for natural feel
+
+### CPU Calling Logic
+- Trump cards valued highly: Ace (~95%), King (~85%), Queen (~70%), J/10 (~50%), low trump (~30%)
+- Non-trump high cards: Ace (~80%), King (~55%), Queen (~35%), scaled by player count
+- Singleton/doubleton high cards considered weaker (vulnerable to trumping)
+- Void in a suit + trump cards = small bonus (opportunity to trump in)
+- Dealer restriction handled by adjusting toward expected wins direction
+
+### CPU Playing Logic
+- Leads high cards when needing tricks, low cards when not
+- When following: tries to win if needs tricks, otherwise plays low
+- Follows suit rules correctly (must follow lead suit if possible)
 
 ## Round Configuration
 | Round | Cards | Trump    | Special |
