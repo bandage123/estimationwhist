@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { LobbyCreate, LobbyWaiting } from "@/components/Lobby";
 import { DealerDetermination } from "@/components/DealerDetermination";
@@ -73,14 +73,18 @@ export default function Game() {
     return hand;
   }, [currentPlayer, isMyTurn, gameState]);
 
-  // Show error toast
-  if (error) {
-    toast({
-      title: "Error",
-      description: error,
-      variant: "destructive",
-    });
-  }
+  // Show error toast - using useEffect to avoid calling during render
+  const lastErrorRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (error && error !== lastErrorRef.current) {
+      lastErrorRef.current = error;
+      toast({
+        title: "Error",
+        description: error,
+        variant: "destructive",
+      });
+    }
+  }, [error, toast]);
 
   // Not in a game yet - show lobby
   if (!gameState) {
