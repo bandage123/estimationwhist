@@ -42,11 +42,19 @@ shared/
 
 ## Key Features
 - Real-time multiplayer via WebSocket
-- Game code system for easy joining
+- Single-player mode with 1-6 CPU opponents
+- CPU AI with intelligent calling and card playing
+- Game code system for easy joining (multiplayer)
 - Automatic dealer rotation
 - Trump suit changes each round
 - Complete 13-round game flow
 - Detailed scoreboard with round history
+
+## Single Player Mode
+- CPU players: Alice, Bob, Charlie, Diana, Edward, Fiona
+- CPU AI calls based on hand strength (high cards, trump cards)
+- CPU plays strategically to win tricks when needed
+- 1-1.5 second delays between CPU moves for natural feel
 
 ## Round Configuration
 | Round | Cards | Trump    | Special |
