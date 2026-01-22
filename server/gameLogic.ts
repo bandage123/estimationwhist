@@ -54,6 +54,7 @@ type StateUpdateCallback = () => void;
 export class Game {
   state: GameState;
   private onStateUpdate: StateUpdateCallback | null = null;
+  private cpuProcessingTimeout: NodeJS.Timeout | null = null; // Track CPU processing timeout
 
   constructor(hostName: string, hostId: string, isSinglePlayer: boolean = false, cpuCount: number = 0) {
     this.state = {
@@ -223,25 +224,74 @@ export class Game {
   private generateCPUCall(player: Player): number {
     const hand = player.hand;
     const trump = this.state.trump;
+    const numPlayers = this.state.players.length;
     
-    // Count likely wins
+    // Count cards by suit
+    const suitCounts: Record<Suit, number> = { clubs: 0, diamonds: 0, hearts: 0, spades: 0 };
+    for (const card of hand) {
+      suitCounts[card.suit]++;
+    }
+    
+    // Evaluate each card's likelihood of winning a trick
     let expectedWins = 0;
     
     for (const card of hand) {
       const value = getRankValue(card.rank);
+      const isInTrump = trump && card.suit === trump;
+      const cardsInSuit = suitCounts[card.suit];
       
-      // High cards (J, Q, K, A) are likely winners
-      if (value >= 11) {
-        expectedWins += 0.7;
-      }
-      // Trump cards get a bonus
-      if (trump && card.suit === trump) {
-        expectedWins += 0.5;
+      if (isInTrump) {
+        // Trump cards are very powerful
+        if (value === 14) {
+          // Ace of trumps - almost guaranteed win
+          expectedWins += 0.95;
+        } else if (value === 13) {
+          // King of trumps - very likely win
+          expectedWins += 0.85;
+        } else if (value === 12) {
+          // Queen of trumps
+          expectedWins += 0.70;
+        } else if (value >= 10) {
+          // Jack/10 of trumps
+          expectedWins += 0.50;
+        } else {
+          // Low trumps - can still win when trumping
+          expectedWins += 0.30;
+        }
+      } else {
+        // Non-trump cards
+        if (value === 14) {
+          // Ace - very likely to win when leading or following suit
+          expectedWins += 0.80 / Math.sqrt(numPlayers / 2);
+        } else if (value === 13) {
+          // King - strong but can be beaten by Ace
+          expectedWins += 0.55 / Math.sqrt(numPlayers / 2);
+        } else if (value === 12) {
+          // Queen
+          expectedWins += 0.35 / Math.sqrt(numPlayers / 2);
+        } else if (value >= 10) {
+          // Jack/10
+          expectedWins += 0.15 / Math.sqrt(numPlayers / 2);
+        }
+        // Low non-trump cards get 0 expected wins
+        
+        // Singleton or doubleton high cards are weaker (can get trumped)
+        if (trump && cardsInSuit <= 2 && value >= 12) {
+          expectedWins -= 0.15;
+        }
+        
+        // Void in a suit with trump gives opportunity to trump in
+        if (trump && cardsInSuit === 0 && suitCounts[trump] > 0) {
+          // Small bonus for having a void (can trump)
+          expectedWins += 0.1;
+        }
       }
     }
     
-    // Add some randomness
-    expectedWins += (Math.random() - 0.5);
+    // Adjust for number of cards (more cards = more chances to win)
+    // But also more variance
+    const varianceFactor = 0.2 * Math.random() - 0.1; // -0.1 to +0.1 per expected win
+    expectedWins *= (1 + varianceFactor);
     
     let call = Math.round(expectedWins);
     call = Math.max(0, Math.min(call, this.state.cardCount));
@@ -251,12 +301,13 @@ export class Game {
       const totalCalled = this.state.players.reduce((sum, p) => sum + (p.call ?? 0), 0);
       const forbidden = this.state.cardCount - totalCalled;
       if (call === forbidden) {
-        // Adjust call to avoid forbidden number
-        call = call > 0 ? call - 1 : call + 1;
-        call = Math.max(0, Math.min(call, this.state.cardCount));
-        if (call === forbidden) {
-          call = call > 0 ? call - 1 : 0;
+        // Adjust call to avoid forbidden number - prefer going lower unless at 0
+        if (expectedWins > forbidden) {
+          call = forbidden + 1;
+        } else {
+          call = forbidden - 1;
         }
+        call = Math.max(0, Math.min(call, this.state.cardCount));
       }
     }
     
@@ -351,6 +402,12 @@ export class Game {
 
   // Process CPU turns automatically
   private processCPUTurns(): void {
+    // Clear any existing timeout to prevent duplicates
+    if (this.cpuProcessingTimeout) {
+      clearTimeout(this.cpuProcessingTimeout);
+      this.cpuProcessingTimeout = null;
+    }
+
     if (this.state.phase !== "calling" && this.state.phase !== "playing") {
       return;
     }
@@ -361,20 +418,42 @@ export class Game {
     }
 
     // Add delay to make CPU moves feel natural
-    setTimeout(() => {
+    this.cpuProcessingTimeout = setTimeout(() => {
+      this.cpuProcessingTimeout = null;
+      
+      // Re-check state is still valid (could have changed during timeout)
+      if (this.state.phase !== "calling" && this.state.phase !== "playing") {
+        return;
+      }
+
+      const actualCurrentPlayer = this.state.players[this.state.currentPlayerIndex];
+      if (!actualCurrentPlayer || !actualCurrentPlayer.isCPU) {
+        return;
+      }
+
       if (this.state.phase === "calling") {
-        const call = this.generateCPUCall(currentPlayer);
-        this.makeCall(currentPlayer.id, call);
+        const call = this.generateCPUCall(actualCurrentPlayer);
+        this.makeCall(actualCurrentPlayer.id, call);
         this.notifyStateUpdate();
         this.processCPUTurns();
       } else if (this.state.phase === "playing") {
-        const card = this.generateCPUCardPlay(currentPlayer);
-        this.playCard(currentPlayer.id, card);
+        // Double-check player has cards to play
+        if (actualCurrentPlayer.hand.length === 0) {
+          return;
+        }
+        const card = this.generateCPUCardPlay(actualCurrentPlayer);
+        const trickWasComplete = this.state.currentTrick.cards.length === this.state.players.length - 1;
+        this.playCard(actualCurrentPlayer.id, card);
         this.notifyStateUpdate();
-        // Continue processing if still in playing phase
-        setTimeout(() => {
-          this.processCPUTurns();
-        }, 500);
+        
+        // Only continue processing if trick didn't just complete
+        // (trick completion has its own timeout that calls processCPUTurns)
+        if (!trickWasComplete && this.state.phase === "playing") {
+          this.cpuProcessingTimeout = setTimeout(() => {
+            this.cpuProcessingTimeout = null;
+            this.processCPUTurns();
+          }, 500);
+        }
       }
     }, 1000 + Math.random() * 500); // 1-1.5 second delay
   }
