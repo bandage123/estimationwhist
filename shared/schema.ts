@@ -21,6 +21,7 @@ export interface Player {
   score: number;
   isDealer: boolean;
   isConnected: boolean;
+  isCPU: boolean;
 }
 
 export interface Trick {
@@ -76,6 +77,7 @@ export interface GameState {
   trickNumber: number;
   dealerCards: { playerId: string; card: Card }[]; // For dealer determination
   roundHistory: RoundResult[];
+  isSinglePlayer: boolean;
 }
 
 export interface RoundResult {
@@ -92,6 +94,7 @@ export interface RoundResult {
 // WebSocket message types
 export type ClientMessage =
   | { type: "create_game"; playerName: string }
+  | { type: "create_single_player_game"; playerName: string; cpuCount: number }
   | { type: "join_game"; gameId: string; playerName: string }
   | { type: "start_game" }
   | { type: "make_call"; call: number }

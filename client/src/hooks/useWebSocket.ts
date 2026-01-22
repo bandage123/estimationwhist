@@ -9,6 +9,7 @@ interface UseWebSocketReturn {
   isConnecting: boolean;
   error: string | null;
   createGame: (playerName: string) => void;
+  createSinglePlayerGame: (playerName: string, cpuCount: number) => void;
   joinGame: (gameId: string, playerName: string) => void;
   startGame: () => void;
   makeCall: (call: number) => void;
@@ -122,6 +123,10 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "create_game", playerName });
   }, [sendMessage]);
 
+  const createSinglePlayerGame = useCallback((playerName: string, cpuCount: number) => {
+    sendMessage({ type: "create_single_player_game", playerName, cpuCount });
+  }, [sendMessage]);
+
   const joinGame = useCallback((gameId: string, playerName: string) => {
     setGameId(gameId);
     sendMessage({ type: "join_game", gameId, playerName });
@@ -151,6 +156,7 @@ export function useWebSocket(): UseWebSocketReturn {
     isConnecting,
     error,
     createGame,
+    createSinglePlayerGame,
     joinGame,
     startGame,
     makeCall,

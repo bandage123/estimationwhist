@@ -21,6 +21,7 @@ export default function Game() {
     isConnecting,
     error,
     createGame,
+    createSinglePlayerGame,
     joinGame,
     startGame,
     makeCall,
@@ -86,6 +87,7 @@ export default function Game() {
     return (
       <LobbyCreate
         onCreateGame={createGame}
+        onCreateSinglePlayerGame={createSinglePlayerGame}
         onJoinGame={joinGame}
         isConnecting={isConnecting}
       />
@@ -100,6 +102,7 @@ export default function Game() {
         players={gameState.players}
         isHost={isHost}
         onStartGame={startGame}
+        isSinglePlayer={gameState.isSinglePlayer}
       />
     );
   }

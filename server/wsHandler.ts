@@ -55,6 +55,39 @@ export function setupWebSocket(server: Server): void {
             const game = gameManager.createGame(message.playerName, client.playerId);
             client.gameId = game.state.id;
             
+            // Set up state update callback for CPU players
+            game.setOnStateUpdate(() => {
+              broadcastToGame(game);
+            });
+            
+            sendToClient(ws, {
+              type: "game_created",
+              gameId: game.state.id,
+              playerId: client.playerId,
+            });
+            
+            sendToClient(ws, {
+              type: "game_state",
+              state: game.getStateForPlayer(client.playerId),
+              playerId: client.playerId,
+            });
+            break;
+          }
+
+          case "create_single_player_game": {
+            const cpuCount = Math.max(1, Math.min(6, message.cpuCount));
+            const game = gameManager.createSinglePlayerGame(message.playerName, client.playerId, cpuCount);
+            client.gameId = game.state.id;
+            
+            // Set up state update callback for CPU players
+            game.setOnStateUpdate(() => {
+              sendToClient(ws, {
+                type: "game_state",
+                state: game.getStateForPlayer(client.playerId),
+                playerId: client.playerId,
+              });
+            });
+            
             sendToClient(ws, {
               type: "game_created",
               gameId: game.state.id,

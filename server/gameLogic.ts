@@ -13,6 +13,10 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
+const CPU_NAMES = [
+  "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona"
+];
+
 // Generate a short game ID
 function generateGameId(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -44,14 +48,18 @@ function shuffleDeck(deck: Card[]): Card[] {
   return shuffled;
 }
 
+// Callback type for state updates
+type StateUpdateCallback = () => void;
+
 export class Game {
   state: GameState;
+  private onStateUpdate: StateUpdateCallback | null = null;
 
-  constructor(hostName: string, hostId: string) {
+  constructor(hostName: string, hostId: string, isSinglePlayer: boolean = false, cpuCount: number = 0) {
     this.state = {
       id: generateGameId(),
       phase: "lobby",
-      players: [this.createPlayer(hostName, hostId)],
+      players: [this.createPlayer(hostName, hostId, false)],
       currentRound: 0,
       currentPlayerIndex: 0,
       dealerIndex: -1,
@@ -62,10 +70,28 @@ export class Game {
       trickNumber: 1,
       dealerCards: [],
       roundHistory: [],
+      isSinglePlayer,
     };
+
+    // Add CPU players for single player mode
+    if (isSinglePlayer && cpuCount > 0) {
+      for (let i = 0; i < Math.min(cpuCount, 6); i++) {
+        this.state.players.push(this.createPlayer(CPU_NAMES[i], randomUUID(), true));
+      }
+    }
   }
 
-  private createPlayer(name: string, id: string): Player {
+  setOnStateUpdate(callback: StateUpdateCallback): void {
+    this.onStateUpdate = callback;
+  }
+
+  private notifyStateUpdate(): void {
+    if (this.onStateUpdate) {
+      this.onStateUpdate();
+    }
+  }
+
+  private createPlayer(name: string, id: string, isCPU: boolean = false): Player {
     return {
       id,
       name,
@@ -75,6 +101,7 @@ export class Game {
       score: 0,
       isDealer: false,
       isConnected: true,
+      isCPU,
     };
   }
 
@@ -83,7 +110,7 @@ export class Game {
     if (this.state.players.length >= 7) return false;
     if (this.state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) return false;
 
-    this.state.players.push(this.createPlayer(name, playerId));
+    this.state.players.push(this.createPlayer(name, playerId, false));
     return true;
   }
 
@@ -112,6 +139,8 @@ export class Game {
       });
     }
 
+    this.notifyStateUpdate();
+
     // Find highest card(s)
     let highestValue = 0;
     let highestPlayers: number[] = [];
@@ -136,6 +165,8 @@ export class Game {
       // Start the first round after a delay
       setTimeout(() => {
         this.startRound(1);
+        this.notifyStateUpdate();
+        this.processCPUTurns();
       }, 3000);
     } else {
       // Tie - deal again after delay
@@ -188,6 +219,166 @@ export class Game {
     this.state.currentPlayerIndex = (this.state.dealerIndex + 1) % this.state.players.length;
   }
 
+  // CPU AI: Generate a call based on hand strength
+  private generateCPUCall(player: Player): number {
+    const hand = player.hand;
+    const trump = this.state.trump;
+    
+    // Count likely wins
+    let expectedWins = 0;
+    
+    for (const card of hand) {
+      const value = getRankValue(card.rank);
+      
+      // High cards (J, Q, K, A) are likely winners
+      if (value >= 11) {
+        expectedWins += 0.7;
+      }
+      // Trump cards get a bonus
+      if (trump && card.suit === trump) {
+        expectedWins += 0.5;
+      }
+    }
+    
+    // Add some randomness
+    expectedWins += (Math.random() - 0.5);
+    
+    let call = Math.round(expectedWins);
+    call = Math.max(0, Math.min(call, this.state.cardCount));
+    
+    // Check dealer restriction
+    if (player.isDealer) {
+      const totalCalled = this.state.players.reduce((sum, p) => sum + (p.call ?? 0), 0);
+      const forbidden = this.state.cardCount - totalCalled;
+      if (call === forbidden) {
+        // Adjust call to avoid forbidden number
+        call = call > 0 ? call - 1 : call + 1;
+        call = Math.max(0, Math.min(call, this.state.cardCount));
+        if (call === forbidden) {
+          call = call > 0 ? call - 1 : 0;
+        }
+      }
+    }
+    
+    return call;
+  }
+
+  // CPU AI: Choose which card to play
+  private generateCPUCardPlay(player: Player): Card {
+    const hand = player.hand;
+    const leadSuit = this.state.currentTrick.leadSuit;
+    const trump = this.state.trump;
+    
+    // Get playable cards
+    let playableCards: Card[];
+    if (leadSuit) {
+      const suitCards = hand.filter(c => c.suit === leadSuit);
+      playableCards = suitCards.length > 0 ? suitCards : hand;
+    } else {
+      playableCards = hand;
+    }
+    
+    // Determine strategy based on current trick winning status
+    const currentTrickCards = this.state.currentTrick.cards;
+    
+    if (currentTrickCards.length === 0) {
+      // Leading the trick - lead with a strong card if we need wins
+      const tricksNeeded = (player.call ?? 0) - player.tricksWon;
+      if (tricksNeeded > 0) {
+        // Lead with a high card
+        return playableCards.reduce((best, card) => {
+          const bestValue = this.getCardStrength(best, trump);
+          const cardValue = this.getCardStrength(card, trump);
+          return cardValue > bestValue ? card : best;
+        });
+      } else {
+        // Don't need more wins, play low
+        return playableCards.reduce((lowest, card) => {
+          const lowestValue = this.getCardStrength(lowest, trump);
+          const cardValue = this.getCardStrength(card, trump);
+          return cardValue < lowestValue ? card : lowest;
+        });
+      }
+    } else {
+      // Following - determine if we should try to win
+      const tricksNeeded = (player.call ?? 0) - player.tricksWon;
+      const currentWinningValue = this.getCurrentWinningValue();
+      
+      if (tricksNeeded > 0) {
+        // Try to win - find a card that beats current winner
+        const winningCard = playableCards.find(card => {
+          const cardValue = this.getCardTrickValue(card, leadSuit!, trump);
+          return cardValue > currentWinningValue;
+        });
+        
+        if (winningCard) {
+          return winningCard;
+        }
+      }
+      
+      // Can't/don't want to win - play lowest card
+      return playableCards.reduce((lowest, card) => {
+        const lowestValue = this.getCardStrength(lowest, trump);
+        const cardValue = this.getCardStrength(card, trump);
+        return cardValue < lowestValue ? card : lowest;
+      });
+    }
+  }
+
+  private getCardStrength(card: Card, trump: Suit | null): number {
+    const baseValue = getRankValue(card.rank);
+    if (trump && card.suit === trump) {
+      return 100 + baseValue;
+    }
+    return baseValue;
+  }
+
+  private getCurrentWinningValue(): number {
+    const { cards, leadSuit } = this.state.currentTrick;
+    const trump = this.state.trump;
+    
+    if (cards.length === 0) return 0;
+    
+    let maxValue = 0;
+    for (const { card } of cards) {
+      const value = this.getCardTrickValue(card, leadSuit!, trump);
+      if (value > maxValue) {
+        maxValue = value;
+      }
+    }
+    return maxValue;
+  }
+
+  // Process CPU turns automatically
+  private processCPUTurns(): void {
+    if (this.state.phase !== "calling" && this.state.phase !== "playing") {
+      return;
+    }
+
+    const currentPlayer = this.state.players[this.state.currentPlayerIndex];
+    if (!currentPlayer || !currentPlayer.isCPU) {
+      return;
+    }
+
+    // Add delay to make CPU moves feel natural
+    setTimeout(() => {
+      if (this.state.phase === "calling") {
+        const call = this.generateCPUCall(currentPlayer);
+        this.makeCall(currentPlayer.id, call);
+        this.notifyStateUpdate();
+        this.processCPUTurns();
+      } else if (this.state.phase === "playing") {
+        const card = this.generateCPUCardPlay(currentPlayer);
+        this.playCard(currentPlayer.id, card);
+        this.notifyStateUpdate();
+        // Continue processing if still in playing phase
+        setTimeout(() => {
+          this.processCPUTurns();
+        }, 500);
+      }
+    }, 1000 + Math.random() * 500); // 1-1.5 second delay
+  }
+
   makeCall(playerId: string, call: number): boolean {
     if (this.state.phase !== "calling") return false;
 
@@ -218,6 +409,12 @@ export class Game {
       this.state.currentPlayerIndex = (this.state.dealerIndex + 1) % this.state.players.length;
     } else {
       this.state.currentPlayerIndex = nextIndex;
+    }
+
+    // Trigger CPU processing if next player is CPU (for single player mode)
+    if (this.state.isSinglePlayer && !player.isCPU) {
+      this.notifyStateUpdate();
+      this.processCPUTurns();
     }
 
     return true;
@@ -270,16 +467,25 @@ export class Game {
         // Round is over
         setTimeout(() => {
           this.endRound();
+          this.notifyStateUpdate();
         }, 2000);
       } else {
         // Next trick
         setTimeout(() => {
           this.startNextTrick(winnerId);
+          this.notifyStateUpdate();
+          this.processCPUTurns();
         }, 2000);
       }
     } else {
       // Next player
       this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
+      
+      // Trigger CPU processing if next player is CPU (for single player mode)
+      if (this.state.isSinglePlayer && !player.isCPU) {
+        this.notifyStateUpdate();
+        this.processCPUTurns();
+      }
     }
 
     return true;
@@ -383,16 +589,22 @@ export class Game {
 
     // Start next round
     this.startRound(this.state.currentRound + 1);
+    this.notifyStateUpdate();
+    this.processCPUTurns();
   }
 
   // Get state for a specific player (hide other players' hands)
   getStateForPlayer(playerId: string): GameState {
     const state = JSON.parse(JSON.stringify(this.state)) as GameState;
 
-    // Hide other players' hands in playing phase
+    // Hide other players' hands in playing phase (but show CPU hands in single player)
     if (state.phase === "playing" || state.phase === "calling") {
       for (const player of state.players) {
-        if (player.id !== playerId) {
+        if (player.id !== playerId && !this.state.isSinglePlayer) {
+          player.hand = player.hand.map(() => ({ suit: "clubs" as Suit, rank: "2" as Rank }));
+        }
+        // In single player, hide CPU hands
+        if (player.id !== playerId && player.isCPU) {
           player.hand = player.hand.map(() => ({ suit: "clubs" as Suit, rank: "2" as Rank }));
         }
       }
@@ -408,7 +620,14 @@ class GameManager {
   private playerGameMap: Map<string, string> = new Map(); // playerId -> gameId
 
   createGame(hostName: string, hostId: string): Game {
-    const game = new Game(hostName, hostId);
+    const game = new Game(hostName, hostId, false, 0);
+    this.games.set(game.state.id, game);
+    this.playerGameMap.set(hostId, game.state.id);
+    return game;
+  }
+
+  createSinglePlayerGame(hostName: string, hostId: string, cpuCount: number): Game {
+    const game = new Game(hostName, hostId, true, cpuCount);
     this.games.set(game.state.id, game);
     this.playerGameMap.set(hostId, game.state.id);
     return game;
