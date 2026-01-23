@@ -102,6 +102,33 @@ export function setupWebSocket(server: Server): void {
             break;
           }
 
+          case "create_olympics_game": {
+            const game = gameManager.createOlympicsGame(message.playerName, client.playerId);
+            client.gameId = game.state.id;
+            
+            // Set up state update callback
+            game.setOnStateUpdate(() => {
+              sendToClient(ws, {
+                type: "game_state",
+                state: game.getStateForPlayer(client.playerId),
+                playerId: client.playerId,
+              });
+            });
+            
+            sendToClient(ws, {
+              type: "game_created",
+              gameId: game.state.id,
+              playerId: client.playerId,
+            });
+            
+            sendToClient(ws, {
+              type: "game_state",
+              state: game.getStateForPlayer(client.playerId),
+              playerId: client.playerId,
+            });
+            break;
+          }
+
           case "join_game": {
             const game = gameManager.joinGame(
               message.gameId.toUpperCase(),
@@ -213,6 +240,24 @@ export function setupWebSocket(server: Server): void {
             }
             
             game.nextRound();
+            broadcastToGame(game);
+            break;
+          }
+
+          case "next_olympics_game": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+            
+            // Only host can advance
+            if (game.state.players[0]?.id !== client.playerId) {
+              sendError(ws, "Only you can advance the tournament");
+              return;
+            }
+            
+            game.nextOlympicsGame();
             broadcastToGame(game);
             break;
           }

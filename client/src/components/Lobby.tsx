@@ -5,21 +5,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Copy, CheckCircle, Loader2, Bot, Globe } from "lucide-react";
+import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Player } from "@shared/schema";
 
 interface LobbyCreateProps {
   onCreateGame: (playerName: string) => void;
   onCreateSinglePlayerGame: (playerName: string, cpuCount: number) => void;
+  onCreateOlympicsGame: (playerName: string) => void;
   onJoinGame: (gameId: string, playerName: string) => void;
   isConnecting: boolean;
 }
 
-export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onJoinGame, isConnecting }: LobbyCreateProps) {
+export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOlympicsGame, onJoinGame, isConnecting }: LobbyCreateProps) {
   const [playerName, setPlayerName] = useState("");
   const [gameId, setGameId] = useState("");
-  const [mode, setMode] = useState<"single" | "multi" | "join" | null>(null);
+  const [mode, setMode] = useState<"single" | "olympics" | "multi" | "join" | null>(null);
   const [cpuCount, setCpuCount] = useState("3");
 
   const handleCreateMultiplayer = () => {
@@ -31,6 +32,12 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onJoinGame
   const handleCreateSinglePlayer = () => {
     if (playerName.trim()) {
       onCreateSinglePlayerGame(playerName.trim(), parseInt(cpuCount));
+    }
+  };
+
+  const handleCreateOlympics = () => {
+    if (playerName.trim()) {
+      onCreateOlympicsGame(playerName.trim());
     }
   };
 
@@ -91,6 +98,20 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onJoinGame
                 </Button>
               </div>
               <Button
+                variant="secondary"
+                onClick={() => setMode("olympics")}
+                disabled={!playerName.trim()}
+                className="w-full h-auto py-4 flex flex-col gap-2"
+                data-testid="button-olympics-mode"
+              >
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <Flag className="w-4 h-4" />
+                </div>
+                <span className="font-semibold">The Whist Olympics</span>
+                <span className="text-xs opacity-70">49 countries compete in a tournament</span>
+              </Button>
+              <Button
                 variant="ghost"
                 className="w-full"
                 onClick={() => setMode("join")}
@@ -98,6 +119,45 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onJoinGame
                 data-testid="button-join-mode"
               >
                 Join existing game
+              </Button>
+            </div>
+          ) : mode === "olympics" ? (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Trophy className="w-5 h-5 text-yellow-500" />
+                  <span className="font-medium">The Whist Olympics</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Compete against 48 countries in a grand tournament! 
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>7 groups of 7 players each</li>
+                  <li>Group winners advance to finals</li>
+                  <li>Win the finals to become World Champion!</li>
+                </ul>
+              </div>
+              <Button
+                className="w-full"
+                onClick={handleCreateOlympics}
+                disabled={!playerName.trim() || isConnecting}
+                data-testid="button-start-olympics"
+              >
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Starting Tournament...
+                  </>
+                ) : (
+                  "Enter The Whist Olympics"
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => setMode(null)}
+              >
+                Back
               </Button>
             </div>
           ) : mode === "single" ? (
@@ -230,6 +290,8 @@ interface LobbyWaitingProps {
   isHost: boolean;
   onStartGame: () => void;
   isSinglePlayer?: boolean;
+  isOlympics?: boolean;
+  olympicsGroupNumber?: number;
   minPlayers?: number;
   maxPlayers?: number;
 }
@@ -240,6 +302,8 @@ export function LobbyWaiting({
   isHost,
   onStartGame,
   isSinglePlayer = false,
+  isOlympics = false,
+  olympicsGroupNumber = 1,
   minPlayers = 2,
   maxPlayers = 7,
 }: LobbyWaitingProps) {
@@ -265,7 +329,12 @@ export function LobbyWaiting({
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            {isSinglePlayer ? (
+            {isOlympics ? (
+              <Badge variant="secondary" className="bg-yellow-500/10 border-yellow-500/30">
+                <Trophy className="w-3 h-3 mr-1 text-yellow-500" />
+                Olympics - Group {olympicsGroupNumber}
+              </Badge>
+            ) : isSinglePlayer ? (
               <Badge variant="secondary">
                 <Bot className="w-3 h-3 mr-1" />
                 Single Player
@@ -278,16 +347,18 @@ export function LobbyWaiting({
             )}
           </div>
           <CardTitle className="text-xl">
-            {isSinglePlayer ? "Ready to Play" : "Waiting for Players"}
+            {isOlympics ? "The Whist Olympics" : isSinglePlayer ? "Ready to Play" : "Waiting for Players"}
           </CardTitle>
           <CardDescription>
-            {isSinglePlayer 
+            {isOlympics
+              ? "7 countries compete - winner advances to finals"
+              : isSinglePlayer 
               ? "You're playing against CPU opponents" 
               : "Share the game code with friends to invite them"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {!isSinglePlayer && (
+          {!isSinglePlayer && !isOlympics && (
             <>
               <div className="flex items-center justify-center gap-2">
                 <div className="px-6 py-3 bg-muted rounded-lg">
@@ -316,8 +387,12 @@ export function LobbyWaiting({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Players</span>
+                {isOlympics ? (
+                  <Flag className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                )}
+                <span className="text-sm font-medium">{isOlympics ? "Countries" : "Players"}</span>
               </div>
               <Badge variant="secondary">
                 {players.length}/{maxPlayers}
@@ -325,45 +400,77 @@ export function LobbyWaiting({
             </div>
 
             <div className="space-y-2">
-              {humanPlayers.map((player, index) => (
-                <div
-                  key={player.id}
-                  data-testid={`lobby-player-${player.name}`}
-                  className="flex items-center justify-between p-3 rounded-md bg-muted/50"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium">
-                      {player.name.charAt(0).toUpperCase()}
+              {/* Olympics mode - show all players as countries */}
+              {isOlympics ? (
+                players.map((player) => (
+                  <div
+                    key={player.id}
+                    data-testid={`lobby-player-${player.name}`}
+                    className={`flex items-center justify-between p-3 rounded-md ${
+                      !player.isCPU ? 'bg-primary/10 border border-primary/20' : 'bg-muted/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-xs font-mono font-bold">
+                        {player.countryCode || "??"}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className={`font-medium ${!player.isCPU ? '' : 'text-muted-foreground'}`}>
+                          {player.name}
+                        </span>
+                        {player.countryName && (
+                          <span className="text-xs text-muted-foreground">{player.countryName}</span>
+                        )}
+                      </div>
                     </div>
-                    <span className="font-medium">{player.name}</span>
+                    {!player.isCPU && (
+                      <Badge variant="default" className="text-xs">You</Badge>
+                    )}
                   </div>
-                  {index === 0 && (
-                    <Badge variant="outline" className="text-xs">Host</Badge>
-                  )}
-                </div>
-              ))}
-              
-              {cpuPlayers.length > 0 && (
+                ))
+              ) : (
                 <>
-                  <div className="flex items-center gap-2 mt-3 mb-2">
-                    <Bot className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground font-medium">CPU OPPONENTS</span>
-                  </div>
-                  {cpuPlayers.map((player) => (
+                  {humanPlayers.map((player, index) => (
                     <div
                       key={player.id}
-                      data-testid={`lobby-cpu-${player.name}`}
-                      className="flex items-center justify-between p-3 rounded-md bg-muted/30"
+                      data-testid={`lobby-player-${player.name}`}
+                      className="flex items-center justify-between p-3 rounded-md bg-muted/50"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-sm">
-                          <Bot className="w-4 h-4 text-muted-foreground" />
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium">
+                          {player.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="font-medium text-muted-foreground">{player.name}</span>
+                        <span className="font-medium">{player.name}</span>
                       </div>
-                      <Badge variant="outline" className="text-xs">CPU</Badge>
+                      {index === 0 && (
+                        <Badge variant="outline" className="text-xs">Host</Badge>
+                      )}
                     </div>
                   ))}
+                  
+                  {cpuPlayers.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 mt-3 mb-2">
+                        <Bot className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground font-medium">CPU OPPONENTS</span>
+                      </div>
+                      {cpuPlayers.map((player) => (
+                        <div
+                          key={player.id}
+                          data-testid={`lobby-cpu-${player.name}`}
+                          className="flex items-center justify-between p-3 rounded-md bg-muted/30"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-sm">
+                              <Bot className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                            <span className="font-medium text-muted-foreground">{player.name}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">CPU</Badge>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -383,7 +490,9 @@ export function LobbyWaiting({
               onClick={onStartGame}
               data-testid="button-start-game"
             >
-              {isSinglePlayer 
+              {isOlympics 
+                ? `Begin Group ${olympicsGroupNumber}` 
+                : isSinglePlayer 
                 ? `Start Game` 
                 : `Start Game (${players.length} players)`}
             </Button>

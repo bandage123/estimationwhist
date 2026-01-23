@@ -37,18 +37,40 @@ server/
 ├── wsHandler.ts           # WebSocket message handling
 ├── routes.ts              # Express routes
 shared/
-└── schema.ts              # TypeScript types, game configuration
+├── schema.ts              # TypeScript types, game configuration
+└── olympicsData.ts        # 49 countries data for Olympics mode
 ```
 
 ## Key Features
 - Real-time multiplayer via WebSocket
 - Single-player mode with 1-6 CPU opponents
+- Olympics tournament mode (49 countries)
 - CPU AI with intelligent calling and card playing
 - Game code system for easy joining (multiplayer)
 - Automatic dealer rotation
 - Trump suit changes each round
 - Complete 13-round game flow
 - Detailed scoreboard with round history
+
+## Olympics Tournament Mode
+- 49 countries compete in a grand tournament
+- 7 groups of 7 players each
+- Human player competes in Group 1 with country name and ISO code
+- Each group plays a full 13-round game
+- Group winners advance to finals (7 finalists)
+- Finals winner becomes the World Champion
+- Countries have ISO codes (AR, AU, BR, etc.) displayed throughout
+- Player names generated as "Adjective CountryName" (e.g., "Swift Argentina")
+
+### Olympics Structure
+```
+Group Stage (7 groups × 7 players):
+├── Group 1: Human + 6 CPU countries → Winner advances
+├── Group 2-7: All CPU countries → Winners advance
+│
+Finals (7 group winners):
+└── Single 13-round game → Grand Champion crowned
+```
 
 ## Single Player Mode
 - CPU players: Alice, Bob, Charlie, Diana, Edward, Fiona

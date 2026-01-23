@@ -10,8 +10,10 @@ import {
   getRankValue,
   suits,
   ranks,
+  OlympicsState,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { generateOlympicsPlayers } from "@shared/olympicsData";
 
 const CPU_NAMES = [
   "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona"
@@ -672,6 +674,85 @@ export class Game {
     this.processCPUTurns();
   }
 
+  nextOlympicsGame(): void {
+    if (!this.state.isOlympics || !this.state.olympicsState || !this.state.allOlympicsPlayers) return;
+    if (this.state.phase !== "game_end") return;
+
+    const olympics = this.state.olympicsState;
+    
+    // Get winner of current game (highest score)
+    const sortedPlayers = [...this.state.players].sort((a, b) => b.score - a.score);
+    const winner = sortedPlayers[0];
+    
+    if (olympics.currentPhase === "groups") {
+      // Mark current group as completed
+      olympics.groups[olympics.currentGroupIndex].completed = true;
+      olympics.groups[olympics.currentGroupIndex].winnerId = winner.id;
+      olympics.finalsPlayerIds.push(winner.id);
+      
+      // Move to next group or finals
+      if (olympics.currentGroupIndex < 6) {
+        // Next group - this is watched by the human but they only play in group 0
+        olympics.currentGroupIndex++;
+        
+        // Get players for next group
+        const groupPlayerIds = olympics.groups[olympics.currentGroupIndex].playerIds;
+        this.state.players = groupPlayerIds.map(id => 
+          this.state.allOlympicsPlayers!.find(p => p.id === id)!
+        ).map(p => ({
+          ...p,
+          hand: [],
+          call: null,
+          tricksWon: 0,
+          score: 0,
+          isDealer: false,
+        }));
+        
+        // Reset game state for new group
+        this.state.currentRound = 0;
+        this.state.roundHistory = [];
+        this.state.phase = "lobby";
+        
+        // Auto-start the game
+        setTimeout(() => {
+          this.startGame();
+          this.notifyStateUpdate();
+        }, 1000);
+      } else {
+        // All groups complete - move to finals
+        olympics.currentPhase = "finals";
+        
+        // Get finalist players
+        this.state.players = olympics.finalsPlayerIds.map(id => 
+          this.state.allOlympicsPlayers!.find(p => p.id === id)!
+        ).map(p => ({
+          ...p,
+          hand: [],
+          call: null,
+          tricksWon: 0,
+          score: 0,
+          isDealer: false,
+        }));
+        
+        // Reset game state for finals
+        this.state.currentRound = 0;
+        this.state.roundHistory = [];
+        this.state.phase = "lobby";
+        
+        // Auto-start the finals
+        setTimeout(() => {
+          this.startGame();
+          this.notifyStateUpdate();
+        }, 1000);
+      }
+    } else if (olympics.currentPhase === "finals") {
+      // Finals complete - crown the champion!
+      olympics.finalsCompleted = true;
+      olympics.grandChampionId = winner.id;
+      olympics.currentPhase = "complete";
+    }
+  }
+
   // Get state for a specific player (hide other players' hands)
   getStateForPlayer(playerId: string): GameState {
     const state = JSON.parse(JSON.stringify(this.state)) as GameState;
@@ -707,6 +788,81 @@ class GameManager {
 
   createSinglePlayerGame(hostName: string, hostId: string, cpuCount: number): Game {
     const game = new Game(hostName, hostId, true, cpuCount);
+    this.games.set(game.state.id, game);
+    this.playerGameMap.set(hostId, game.state.id);
+    return game;
+  }
+
+  createOlympicsGame(hostName: string, hostId: string): Game {
+    const game = new Game(hostName, hostId, true, 0);
+    
+    // Generate all 49 Olympics players
+    const olympicsPlayers = generateOlympicsPlayers();
+    
+    // Pick one country for the human player (first one) and replace it
+    const humanCountry = olympicsPlayers[0];
+    
+    // Create all 49 player objects
+    const allPlayers: Player[] = olympicsPlayers.map((op, index) => {
+      if (index === 0) {
+        // Human player
+        return {
+          id: hostId,
+          name: `${op.name.split(' ')[0]} ${hostName}`, // "Adjective PlayerName"
+          hand: [],
+          call: null,
+          tricksWon: 0,
+          score: 0,
+          isDealer: false,
+          isConnected: true,
+          isCPU: false,
+          countryCode: op.countryCode,
+          countryName: op.countryName,
+        };
+      } else {
+        return {
+          id: randomUUID(),
+          name: op.name,
+          hand: [],
+          call: null,
+          tricksWon: 0,
+          score: 0,
+          isDealer: false,
+          isConnected: true,
+          isCPU: true,
+          countryCode: op.countryCode,
+          countryName: op.countryName,
+        };
+      }
+    });
+    
+    // Create 7 groups of 7 players each
+    const groups: OlympicsState['groups'] = [];
+    for (let i = 0; i < 7; i++) {
+      const groupPlayers = allPlayers.slice(i * 7, (i + 1) * 7);
+      groups.push({
+        groupNumber: i + 1,
+        playerIds: groupPlayers.map(p => p.id),
+        completed: false,
+        winnerId: null,
+      });
+    }
+    
+    // Set up Olympics state
+    game.state.isOlympics = true;
+    game.state.allOlympicsPlayers = allPlayers;
+    game.state.olympicsState = {
+      currentGroupIndex: 0,
+      groups,
+      finalsPlayerIds: [],
+      finalsCompleted: false,
+      grandChampionId: null,
+      currentPhase: "groups",
+    };
+    
+    // Set current game players to first group (where human is)
+    game.state.players = allPlayers.slice(0, 7);
+    
     this.games.set(game.state.id, game);
     this.playerGameMap.set(hostId, game.state.id);
     return game;

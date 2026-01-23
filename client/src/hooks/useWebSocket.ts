@@ -10,11 +10,13 @@ interface UseWebSocketReturn {
   error: string | null;
   createGame: (playerName: string) => void;
   createSinglePlayerGame: (playerName: string, cpuCount: number) => void;
+  createOlympicsGame: (playerName: string) => void;
   joinGame: (gameId: string, playerName: string) => void;
   startGame: () => void;
   makeCall: (call: number) => void;
   playCard: (card: Card) => void;
   nextRound: () => void;
+  nextOlympicsGame: () => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -127,6 +129,10 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "create_single_player_game", playerName, cpuCount });
   }, [sendMessage]);
 
+  const createOlympicsGame = useCallback((playerName: string) => {
+    sendMessage({ type: "create_olympics_game", playerName });
+  }, [sendMessage]);
+
   const joinGame = useCallback((gameId: string, playerName: string) => {
     setGameId(gameId);
     sendMessage({ type: "join_game", gameId, playerName });
@@ -148,6 +154,10 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "next_round" });
   }, [sendMessage]);
 
+  const nextOlympicsGame = useCallback(() => {
+    sendMessage({ type: "next_olympics_game" });
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -157,10 +167,12 @@ export function useWebSocket(): UseWebSocketReturn {
     error,
     createGame,
     createSinglePlayerGame,
+    createOlympicsGame,
     joinGame,
     startGame,
     makeCall,
     playCard,
     nextRound,
+    nextOlympicsGame,
   };
 }

@@ -22,6 +22,8 @@ export interface Player {
   isDealer: boolean;
   isConnected: boolean;
   isCPU: boolean;
+  countryCode?: string; // ISO country code for Olympics mode
+  countryName?: string; // Country name for Olympics mode
 }
 
 export interface Trick {
@@ -63,6 +65,20 @@ export type GamePhase =
   | "round_end"
   | "game_end";
 
+export interface OlympicsState {
+  currentGroupIndex: number;
+  groups: {
+    groupNumber: number;
+    playerIds: string[];
+    completed: boolean;
+    winnerId: string | null;
+  }[];
+  finalsPlayerIds: string[];
+  finalsCompleted: boolean;
+  grandChampionId: string | null;
+  currentPhase: "groups" | "finals" | "complete";
+}
+
 export interface GameState {
   id: string;
   phase: GamePhase;
@@ -78,6 +94,9 @@ export interface GameState {
   dealerCards: { playerId: string; card: Card }[]; // For dealer determination
   roundHistory: RoundResult[];
   isSinglePlayer: boolean;
+  isOlympics?: boolean;
+  olympicsState?: OlympicsState;
+  allOlympicsPlayers?: Player[]; // Store all 49 players for Olympics mode
 }
 
 export interface RoundResult {
@@ -95,11 +114,13 @@ export interface RoundResult {
 export type ClientMessage =
   | { type: "create_game"; playerName: string }
   | { type: "create_single_player_game"; playerName: string; cpuCount: number }
+  | { type: "create_olympics_game"; playerName: string }
   | { type: "join_game"; gameId: string; playerName: string }
   | { type: "start_game" }
   | { type: "make_call"; call: number }
   | { type: "play_card"; card: Card }
   | { type: "next_round" }
+  | { type: "next_olympics_game" }
   | { type: "request_state" };
 
 export type ServerMessage =
