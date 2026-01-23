@@ -493,16 +493,24 @@ export class Game {
       this.state.currentPlayerIndex = nextIndex;
     }
 
-    // Always notify state update first
+    // Notify state update
     this.notifyStateUpdate();
     
-    // Trigger CPU processing if next player is CPU (for single player or Olympics mode)
-    const nextPlayer = this.state.players[this.state.currentPlayerIndex];
-    if ((this.state.isSinglePlayer || this.state.isOlympics) && nextPlayer?.isCPU) {
-      this.processCPUTurns();
-    }
+    // Note: processCPUTurns is called by the caller (either wsHandler for human plays, 
+    // or processCPUTurns itself for CPU chains). We don't call it here to avoid duplicate calls.
 
     return true;
+  }
+
+  // Public method to trigger CPU processing - called by wsHandler after human actions
+  triggerCPUProcessingIfNeeded(): void {
+    if (!this.state.isSinglePlayer && !this.state.isOlympics) {
+      return;
+    }
+    const nextPlayer = this.state.players[this.state.currentPlayerIndex];
+    if (nextPlayer?.isCPU) {
+      this.processCPUTurns();
+    }
   }
 
   playCard(playerId: string, card: Card): boolean {
@@ -566,14 +574,11 @@ export class Game {
       // Next player
       this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
       
-      // Always notify state update first
+      // Notify state update
       this.notifyStateUpdate();
       
-      // Trigger CPU processing if next player is CPU (for single player or Olympics mode)
-      const nextPlayer = this.state.players[this.state.currentPlayerIndex];
-      if ((this.state.isSinglePlayer || this.state.isOlympics) && nextPlayer?.isCPU) {
-        this.processCPUTurns();
-      }
+      // Note: processCPUTurns is called by the caller (either wsHandler for human plays, 
+      // or processCPUTurns itself for CPU chains). We don't call it here to avoid duplicate calls.
     }
 
     return true;

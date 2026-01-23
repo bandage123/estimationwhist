@@ -202,6 +202,9 @@ export function setupWebSocket(server: Server): void {
             }
             
             broadcastToGame(game);
+            
+            // Trigger CPU processing if next player is CPU (for single player or Olympics)
+            game.triggerCPUProcessingIfNeeded();
             break;
           }
 
@@ -218,6 +221,9 @@ export function setupWebSocket(server: Server): void {
             }
             
             broadcastToGame(game);
+            
+            // Trigger CPU processing if next player is CPU (for single player or Olympics)
+            game.triggerCPUProcessingIfNeeded();
             
             // Broadcast again after trick resolution
             setTimeout(() => {
