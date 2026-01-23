@@ -165,3 +165,122 @@ export function createOlympicsTournament(playerIds: string[]): OlympicsTournamen
     currentGroupIndex: 0,
   };
 }
+
+// Hyperbolic match report phrases
+const VICTORY_PHRASES = [
+  "dominated from start to finish",
+  "showed incredible mastery",
+  "stunned everyone with their brilliance",
+  "left opponents in awe",
+  "played a flawless game",
+  "demonstrated championship-level play",
+  "crushed all opposition",
+  "rose to legendary status",
+];
+
+const DEFEAT_PHRASES = [
+  "fought valiantly but fell short",
+  "showed promise despite the loss",
+  "struggled to find their rhythm",
+  "couldn't overcome the fierce competition",
+  "faced a tough battle",
+  "will be back stronger next time",
+];
+
+const DRAMA_PHRASES = [
+  "In a nail-biting finish,",
+  "After an epic 13-round battle,",
+  "In what can only be described as a historic match,",
+  "The cards were electric as",
+  "Against all odds,",
+  "In a stunning display of skill,",
+  "The crowd went wild when",
+  "History was made today as",
+];
+
+// Generate a hyperbolic match report
+export function generateMatchReport(
+  winnerName: string,
+  winnerAdjective: string,
+  runnerUpName: string,
+  runnerUpAdjective: string,
+  winnerScore: number,
+  runnerUpScore: number,
+  groupNumber: number
+): string {
+  const drama = DRAMA_PHRASES[Math.floor(Math.random() * DRAMA_PHRASES.length)];
+  const victory = VICTORY_PHRASES[Math.floor(Math.random() * VICTORY_PHRASES.length)];
+  const defeat = DEFEAT_PHRASES[Math.floor(Math.random() * DEFEAT_PHRASES.length)];
+  
+  const margin = winnerScore - runnerUpScore;
+  const closeGame = margin <= 10;
+  
+  if (closeGame) {
+    return `${drama} ${winnerName} edged out ${runnerUpName} by just ${margin} points in Table ${groupNumber}! ` +
+      `Living up to their "${winnerAdjective}" reputation, they secured victory with a final score of ${winnerScore}-${runnerUpScore}. ` +
+      `The "${runnerUpAdjective}" ${runnerUpName.split(' ')[1]} ${defeat}.`;
+  } else {
+    return `${drama} ${winnerName} ${victory} at Table ${groupNumber}! ` +
+      `True to their "${winnerAdjective}" nature, they claimed a commanding ${winnerScore}-${runnerUpScore} victory. ` +
+      `${runnerUpName} ${defeat}.`;
+  }
+}
+
+// Champion quotes based on adjectives
+const CHAMPION_QUOTES: Record<string, string[]> = {
+  default: [
+    "I always believed in myself!",
+    "This is the greatest day of my life!",
+    "Hard work pays off!",
+    "Dreams really do come true!",
+  ],
+  Brave: [
+    "Fortune favors the brave, and today fortune smiled upon me!",
+    "I faced my fears and emerged victorious!",
+  ],
+  Clever: [
+    "I calculated every move. Victory was inevitable!",
+    "Strategy always beats luck!",
+  ],
+  Fierce: [
+    "I came, I saw, I conquered!",
+    "There was no stopping me today!",
+  ],
+  Calm: [
+    "I stayed composed when it mattered most.",
+    "Peace of mind is the ultimate weapon.",
+  ],
+  Lucky: [
+    "Sometimes you just have to believe in fate!",
+    "The cards were with me today!",
+  ],
+  Bold: [
+    "I took risks and they paid off magnificently!",
+    "Nothing ventured, nothing gained!",
+  ],
+  Swift: [
+    "Quick decisions lead to quick victories!",
+    "Speed is the essence of war!",
+  ],
+  Wise: [
+    "Experience is the greatest teacher.",
+    "Knowledge guided every card I played.",
+  ],
+  Mighty: [
+    "Strength prevails!",
+    "I crushed all who stood before me!",
+  ],
+  Humble: [
+    "I'm just grateful for this opportunity.",
+    "My opponents were all worthy. I was simply fortunate today.",
+  ],
+  Legendary: [
+    "Legends are made, not born. Today I became one!",
+    "They will speak of this victory for generations!",
+  ],
+};
+
+export function generateChampionQuote(adjective: string): string {
+  const quotes = CHAMPION_QUOTES[adjective] || CHAMPION_QUOTES.default;
+  return quotes[Math.floor(Math.random() * quotes.length)];
+}

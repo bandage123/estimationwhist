@@ -262,6 +262,30 @@ export function setupWebSocket(server: Server): void {
             break;
           }
 
+          case "start_olympics_qualifying": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+            
+            game.startOlympicsQualifying();
+            broadcastToGame(game);
+            break;
+          }
+
+          case "start_olympics_finals": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+            
+            game.startOlympicsFinals();
+            broadcastToGame(game);
+            break;
+          }
+
           case "request_state": {
             const game = gameManager.getGameForPlayer(client.playerId);
             if (game) {

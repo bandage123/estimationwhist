@@ -11,9 +11,10 @@ import {
   suits,
   ranks,
   OlympicsState,
+  GroupResult,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { generateOlympicsPlayers } from "@shared/olympicsData";
+import { generateOlympicsPlayers, generateMatchReport, generateChampionQuote } from "@shared/olympicsData";
 
 const CPU_NAMES = [
   "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona"
@@ -674,82 +675,402 @@ export class Game {
     this.processCPUTurns();
   }
 
+  // Start the Olympics qualifying round - human plays Group 1, others simulated
+  startOlympicsQualifying(): void {
+    if (!this.state.isOlympics || !this.state.olympicsState) return;
+    if (this.state.olympicsState.currentPhase !== "draws") return;
+    
+    const olympics = this.state.olympicsState;
+    olympics.currentPhase = "qualifying";
+    
+    // Simulate groups 2-7 in the background while human plays group 1
+    this.simulateOtherGroups();
+    
+    // Start human's game (group 1)
+    this.startGame();
+  }
+  
+  // Simulate groups 2-7 concurrently
+  private simulateOtherGroups(): void {
+    if (!this.state.olympicsState || !this.state.allOlympicsPlayers) return;
+    
+    // Simulate groups 2-7 (indices 1-6)
+    for (let groupIdx = 1; groupIdx < 7; groupIdx++) {
+      const group = this.state.olympicsState.groups[groupIdx];
+      const groupPlayers = group.playerIds.map(id => 
+        this.state.allOlympicsPlayers!.find(p => p.id === id)!
+      );
+      
+      // Simulate a full game for this group
+      const result = this.simulateFullGame(groupPlayers);
+      
+      // Store results
+      group.completed = true;
+      group.winnerId = result.winnerId;
+      group.finalScores = result.scores;
+      
+      // Generate match report
+      const sortedScores = [...result.scores].sort((a, b) => b.score - a.score);
+      const winner = groupPlayers.find(p => p.id === sortedScores[0].playerId)!;
+      const runnerUp = groupPlayers.find(p => p.id === sortedScores[1].playerId)!;
+      
+      group.matchReport = generateMatchReport(
+        winner.name,
+        winner.name.split(' ')[0],
+        runnerUp.name,
+        runnerUp.name.split(' ')[0],
+        sortedScores[0].score,
+        sortedScores[1].score,
+        group.groupNumber
+      );
+      
+      // Add winner to finals
+      this.state.olympicsState.finalsPlayerIds.push(result.winnerId);
+    }
+  }
+  
+  // Calculate a call for simulation (static version without this.state dependency)
+  private simulateCPUCall(hand: Card[], trump: Suit | null, numPlayers: number): number {
+    const suitCounts: Record<Suit, number> = { clubs: 0, diamonds: 0, hearts: 0, spades: 0 };
+    for (const card of hand) {
+      suitCounts[card.suit]++;
+    }
+    
+    let expectedWins = 0;
+    
+    for (const card of hand) {
+      const value = getRankValue(card.rank);
+      const isInTrump = trump && card.suit === trump;
+      
+      if (isInTrump) {
+        if (value === 14) expectedWins += 0.95;
+        else if (value === 13) expectedWins += 0.85;
+        else if (value === 12) expectedWins += 0.70;
+        else if (value >= 10) expectedWins += 0.50;
+        else expectedWins += 0.30;
+      } else {
+        if (value === 14) expectedWins += 0.80 / Math.sqrt(numPlayers / 2);
+        else if (value === 13) expectedWins += 0.55 / Math.sqrt(numPlayers / 2);
+        else if (value === 12) expectedWins += 0.35 / Math.sqrt(numPlayers / 2);
+        else if (value >= 10) expectedWins += 0.15 / Math.sqrt(numPlayers / 2);
+      }
+    }
+    
+    return Math.round(expectedWins);
+  }
+
+  // Simulate a complete 13-round game and return results
+  private simulateFullGame(players: Player[]): { winnerId: string; scores: { playerId: string; score: number }[] } {
+    // Create temporary player states
+    const gamePlayers = players.map(p => ({
+      ...p,
+      hand: [] as Card[],
+      call: null as number | null,
+      tricksWon: 0,
+      score: 0,
+    }));
+    
+    // Play all 13 rounds
+    for (let roundNum = 1; roundNum <= 13; roundNum++) {
+      const config = roundConfigs[roundNum - 1];
+      
+      // Deal cards
+      const deck = this.createAndShuffleDeck();
+      for (let i = 0; i < gamePlayers.length; i++) {
+        gamePlayers[i].hand = deck.slice(i * config.cardCount, (i + 1) * config.cardCount);
+        gamePlayers[i].call = null;
+        gamePlayers[i].tricksWon = 0;
+      }
+      
+      // Make calls for all players
+      let totalCalls = 0;
+      const dealerIdx = roundNum % gamePlayers.length;
+      
+      for (let i = 0; i < gamePlayers.length; i++) {
+        const playerIdx = (dealerIdx + 1 + i) % gamePlayers.length;
+        const player = gamePlayers[playerIdx];
+        const isDealer = playerIdx === dealerIdx;
+        
+        let call = this.simulateCPUCall(player.hand, config.trump, gamePlayers.length);
+        
+        // Dealer restriction
+        if (isDealer) {
+          const forbidden = config.cardCount - totalCalls;
+          if (call === forbidden) {
+            call = call > 0 ? call - 1 : call + 1;
+          }
+        }
+        
+        call = Math.max(0, Math.min(call, config.cardCount));
+        player.call = call;
+        totalCalls += call;
+      }
+      
+      // Play all tricks
+      let leadPlayerIdx = (dealerIdx + 1) % gamePlayers.length;
+      
+      for (let trick = 0; trick < config.cardCount; trick++) {
+        const trickCards: { playerIdx: number; card: Card }[] = [];
+        let leadSuit: Suit | null = null;
+        
+        for (let i = 0; i < gamePlayers.length; i++) {
+          const playerIdx = (leadPlayerIdx + i) % gamePlayers.length;
+          const player = gamePlayers[playerIdx];
+          
+          // Pick card to play
+          const card = this.pickCPUCard(player, leadSuit, config.trump);
+          if (i === 0) leadSuit = card.suit;
+          
+          trickCards.push({ playerIdx, card });
+          player.hand = player.hand.filter(c => !(c.suit === card.suit && c.rank === card.rank));
+        }
+        
+        // Determine winner
+        const winnerIdx = this.determineTrickWinner(trickCards, leadSuit!, config.trump);
+        gamePlayers[winnerIdx].tricksWon++;
+        leadPlayerIdx = winnerIdx;
+      }
+      
+      // Calculate scores
+      for (const player of gamePlayers) {
+        let roundScore = 0;
+        if (player.call !== null) {
+          if (player.tricksWon === player.call) {
+            roundScore = 10 + player.tricksWon;
+          } else if (player.tricksWon > player.call) {
+            roundScore = player.tricksWon;
+          }
+        }
+        if (config.doublePoints) roundScore *= 2;
+        player.score += roundScore;
+      }
+    }
+    
+    // Find winner
+    const sortedPlayers = [...gamePlayers].sort((a, b) => b.score - a.score);
+    
+    return {
+      winnerId: sortedPlayers[0].id,
+      scores: gamePlayers.map(p => ({ playerId: p.id, score: p.score })),
+    };
+  }
+  
+  private createAndShuffleDeck(): Card[] {
+    const deck: Card[] = [];
+    for (const suit of suits) {
+      for (const rank of ranks) {
+        deck.push({ suit, rank });
+      }
+    }
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }
+  
+  private determineTrickWinner(cards: { playerIdx: number; card: Card }[], leadSuit: Suit, trump: Suit | null): number {
+    let winningIdx = 0;
+    let winningCard = cards[0].card;
+    
+    for (let i = 1; i < cards.length; i++) {
+      const card = cards[i].card;
+      const isWinningTrump = trump && winningCard.suit === trump;
+      const isCurrentTrump = trump && card.suit === trump;
+      
+      if (isCurrentTrump && !isWinningTrump) {
+        winningIdx = i;
+        winningCard = card;
+      } else if (isCurrentTrump && isWinningTrump) {
+        if (getRankValue(card.rank) > getRankValue(winningCard.rank)) {
+          winningIdx = i;
+          winningCard = card;
+        }
+      } else if (!isCurrentTrump && !isWinningTrump) {
+        if (card.suit === leadSuit && winningCard.suit === leadSuit) {
+          if (getRankValue(card.rank) > getRankValue(winningCard.rank)) {
+            winningIdx = i;
+            winningCard = card;
+          }
+        } else if (card.suit === leadSuit) {
+          winningIdx = i;
+          winningCard = card;
+        }
+      }
+    }
+    
+    return cards[winningIdx].playerIdx;
+  }
+  
+  private pickCPUCard(player: { hand: Card[]; call: number | null; tricksWon: number }, leadSuit: Suit | null, trump: Suit | null): Card {
+    const hand = player.hand;
+    if (hand.length === 0) throw new Error("No cards to play");
+    
+    // Filter to playable cards
+    let playable = hand;
+    if (leadSuit) {
+      const suitCards = hand.filter(c => c.suit === leadSuit);
+      if (suitCards.length > 0) playable = suitCards;
+    }
+    
+    // Sort by rank
+    playable.sort((a, b) => getRankValue(b.rank) - getRankValue(a.rank));
+    
+    const needsTricks = player.call !== null && player.tricksWon < player.call;
+    
+    if (needsTricks) {
+      return playable[0]; // Play highest
+    } else {
+      return playable[playable.length - 1]; // Play lowest
+    }
+  }
+  
+  // When human finishes their qualifying game
+  finishHumanQualifying(): void {
+    if (!this.state.isOlympics || !this.state.olympicsState) return;
+    if (this.state.phase !== "game_end") return;
+    
+    const olympics = this.state.olympicsState;
+    
+    // Record human's group result
+    const sortedPlayers = [...this.state.players].sort((a, b) => b.score - a.score);
+    const winner = sortedPlayers[0];
+    const humanPlayer = this.state.players.find(p => !p.isCPU);
+    
+    olympics.groups[0].completed = true;
+    olympics.groups[0].winnerId = winner.id;
+    olympics.groups[0].finalScores = this.state.players.map(p => ({ playerId: p.id, score: p.score }));
+    
+    // Check if human qualified
+    olympics.humanGroupWon = humanPlayer?.id === winner.id;
+    olympics.humanQualified = olympics.humanGroupWon;
+    
+    if (olympics.humanQualified) {
+      olympics.finalsPlayerIds.unshift(humanPlayer!.id); // Add human to finals
+    }
+    
+    // Generate match report for group 1
+    const runnerUp = sortedPlayers[1];
+    olympics.groups[0].matchReport = generateMatchReport(
+      winner.name,
+      winner.name.split(' ')[0],
+      runnerUp.name,
+      runnerUp.name.split(' ')[0],
+      winner.score,
+      runnerUp.score,
+      1
+    );
+    
+    // Move to results phase
+    olympics.currentPhase = "qualifying_results";
+  }
+  
+  // Start the finals
+  startOlympicsFinals(): void {
+    if (!this.state.isOlympics || !this.state.olympicsState || !this.state.allOlympicsPlayers) return;
+    if (this.state.olympicsState.currentPhase !== "qualifying_results") return;
+    
+    const olympics = this.state.olympicsState;
+    olympics.currentPhase = "finals";
+    
+    // Get finalist players
+    this.state.players = olympics.finalsPlayerIds.map(id => 
+      this.state.allOlympicsPlayers!.find(p => p.id === id)!
+    ).map(p => ({
+      ...p,
+      hand: [],
+      call: null,
+      tricksWon: 0,
+      score: 0,
+      isDealer: false,
+    }));
+    
+    // Reset game state for finals
+    this.state.currentRound = 0;
+    this.state.roundHistory = [];
+    this.state.dealerIndex = -1;
+    this.state.phase = "lobby";
+    
+    // If human didn't qualify, simulate the finals
+    if (!olympics.humanQualified) {
+      const result = this.simulateFullGame(this.state.players);
+      
+      // Set up final scores
+      this.state.players.forEach(p => {
+        const playerResult = result.scores.find(s => s.playerId === p.id);
+        if (playerResult) p.score = playerResult.score;
+      });
+      
+      // Generate finals match report
+      const sortedPlayers = [...this.state.players].sort((a, b) => b.score - a.score);
+      const winner = sortedPlayers[0];
+      const runnerUp = sortedPlayers[1];
+      
+      olympics.finalsMatchReport = generateMatchReport(
+        winner.name,
+        winner.name.split(' ')[0],
+        runnerUp.name,
+        runnerUp.name.split(' ')[0],
+        winner.score,
+        runnerUp.score,
+        0 // Finals
+      ).replace("Table 0", "the Grand Final");
+      
+      olympics.grandChampionId = result.winnerId;
+      olympics.championQuote = generateChampionQuote(winner.name.split(' ')[0]);
+      olympics.finalsCompleted = true;
+      olympics.currentPhase = "complete";
+      this.state.phase = "game_end";
+    } else {
+      // Human plays the finals
+      this.startGame();
+    }
+  }
+  
+  // When finals end (human played)
+  finishOlympicsFinals(): void {
+    if (!this.state.isOlympics || !this.state.olympicsState) return;
+    if (this.state.phase !== "game_end") return;
+    if (this.state.olympicsState.currentPhase !== "finals") return;
+    
+    const olympics = this.state.olympicsState;
+    
+    const sortedPlayers = [...this.state.players].sort((a, b) => b.score - a.score);
+    const winner = sortedPlayers[0];
+    const runnerUp = sortedPlayers[1];
+    
+    olympics.grandChampionId = winner.id;
+    olympics.championQuote = generateChampionQuote(winner.name.split(' ')[0]);
+    olympics.finalsCompleted = true;
+    olympics.currentPhase = "complete";
+    
+    olympics.finalsMatchReport = generateMatchReport(
+      winner.name,
+      winner.name.split(' ')[0],
+      runnerUp.name,
+      runnerUp.name.split(' ')[0],
+      winner.score,
+      runnerUp.score,
+      0
+    ).replace("Table 0", "the Grand Final");
+  }
+  
   nextOlympicsGame(): void {
     if (!this.state.isOlympics || !this.state.olympicsState || !this.state.allOlympicsPlayers) return;
     if (this.state.phase !== "game_end") return;
 
     const olympics = this.state.olympicsState;
     
-    // Get winner of current game (highest score)
-    const sortedPlayers = [...this.state.players].sort((a, b) => b.score - a.score);
-    const winner = sortedPlayers[0];
+    // Handle qualifying completion
+    if (olympics.currentPhase === "qualifying") {
+      this.finishHumanQualifying();
+      return;
+    }
     
-    if (olympics.currentPhase === "groups") {
-      // Mark current group as completed
-      olympics.groups[olympics.currentGroupIndex].completed = true;
-      olympics.groups[olympics.currentGroupIndex].winnerId = winner.id;
-      olympics.finalsPlayerIds.push(winner.id);
-      
-      // Move to next group or finals
-      if (olympics.currentGroupIndex < 6) {
-        // Next group - this is watched by the human but they only play in group 0
-        olympics.currentGroupIndex++;
-        
-        // Get players for next group
-        const groupPlayerIds = olympics.groups[olympics.currentGroupIndex].playerIds;
-        this.state.players = groupPlayerIds.map(id => 
-          this.state.allOlympicsPlayers!.find(p => p.id === id)!
-        ).map(p => ({
-          ...p,
-          hand: [],
-          call: null,
-          tricksWon: 0,
-          score: 0,
-          isDealer: false,
-        }));
-        
-        // Reset game state for new group
-        this.state.currentRound = 0;
-        this.state.roundHistory = [];
-        this.state.phase = "lobby";
-        
-        // Auto-start the game
-        setTimeout(() => {
-          this.startGame();
-          this.notifyStateUpdate();
-        }, 1000);
-      } else {
-        // All groups complete - move to finals
-        olympics.currentPhase = "finals";
-        
-        // Get finalist players
-        this.state.players = olympics.finalsPlayerIds.map(id => 
-          this.state.allOlympicsPlayers!.find(p => p.id === id)!
-        ).map(p => ({
-          ...p,
-          hand: [],
-          call: null,
-          tricksWon: 0,
-          score: 0,
-          isDealer: false,
-        }));
-        
-        // Reset game state for finals
-        this.state.currentRound = 0;
-        this.state.roundHistory = [];
-        this.state.phase = "lobby";
-        
-        // Auto-start the finals
-        setTimeout(() => {
-          this.startGame();
-          this.notifyStateUpdate();
-        }, 1000);
-      }
-    } else if (olympics.currentPhase === "finals") {
-      // Finals complete - crown the champion!
-      olympics.finalsCompleted = true;
-      olympics.grandChampionId = winner.id;
-      olympics.currentPhase = "complete";
+    // Handle finals completion
+    if (olympics.currentPhase === "finals") {
+      this.finishOlympicsFinals();
+      return;
     }
   }
 
@@ -848,7 +1169,7 @@ class GameManager {
       });
     }
     
-    // Set up Olympics state
+    // Set up Olympics state - start in draws phase to show table assignments
     game.state.isOlympics = true;
     game.state.allOlympicsPlayers = allPlayers;
     game.state.olympicsState = {
@@ -857,11 +1178,14 @@ class GameManager {
       finalsPlayerIds: [],
       finalsCompleted: false,
       grandChampionId: null,
-      currentPhase: "groups",
+      currentPhase: "draws",
+      humanQualified: false,
+      humanGroupWon: false,
     };
     
     // Set current game players to first group (where human is)
     game.state.players = allPlayers.slice(0, 7);
+    game.state.phase = "lobby"; // Keep in lobby until qualifying starts
     
     this.games.set(game.state.id, game);
     this.playerGameMap.set(hostId, game.state.id);

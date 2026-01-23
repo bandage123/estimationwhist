@@ -17,6 +17,8 @@ interface UseWebSocketReturn {
   playCard: (card: Card) => void;
   nextRound: () => void;
   nextOlympicsGame: () => void;
+  startOlympicsQualifying: () => void;
+  startOlympicsFinals: () => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -158,6 +160,14 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "next_olympics_game" });
   }, [sendMessage]);
 
+  const startOlympicsQualifying = useCallback(() => {
+    sendMessage({ type: "start_olympics_qualifying" });
+  }, [sendMessage]);
+
+  const startOlympicsFinals = useCallback(() => {
+    sendMessage({ type: "start_olympics_finals" });
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -174,5 +184,7 @@ export function useWebSocket(): UseWebSocketReturn {
     playCard,
     nextRound,
     nextOlympicsGame,
+    startOlympicsQualifying,
+    startOlympicsFinals,
   };
 }

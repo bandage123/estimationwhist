@@ -65,18 +65,26 @@ export type GamePhase =
   | "round_end"
   | "game_end";
 
+export interface GroupResult {
+  groupNumber: number;
+  playerIds: string[];
+  completed: boolean;
+  winnerId: string | null;
+  finalScores?: { playerId: string; score: number }[];
+  matchReport?: string;
+}
+
 export interface OlympicsState {
   currentGroupIndex: number;
-  groups: {
-    groupNumber: number;
-    playerIds: string[];
-    completed: boolean;
-    winnerId: string | null;
-  }[];
+  groups: GroupResult[];
   finalsPlayerIds: string[];
   finalsCompleted: boolean;
   grandChampionId: string | null;
-  currentPhase: "groups" | "finals" | "complete";
+  currentPhase: "draws" | "qualifying" | "qualifying_results" | "finals" | "complete";
+  humanQualified?: boolean;
+  humanGroupWon?: boolean;
+  finalsMatchReport?: string;
+  championQuote?: string;
 }
 
 export interface GameState {
@@ -121,6 +129,9 @@ export type ClientMessage =
   | { type: "play_card"; card: Card }
   | { type: "next_round" }
   | { type: "next_olympics_game" }
+  | { type: "start_olympics_qualifying" }
+  | { type: "view_olympics_results" }
+  | { type: "start_olympics_finals" }
   | { type: "request_state" };
 
 export type ServerMessage =

@@ -55,22 +55,39 @@ shared/
 ## Olympics Tournament Mode
 - 49 countries compete in a grand tournament
 - 7 groups of 7 players each
-- Human player competes in Group 1 with country name and ISO code
-- Each group plays a full 13-round game
+- Human player competes in Table 1 with country name and ISO code
 - Group winners advance to finals (7 finalists)
 - Finals winner becomes the World Champion
 - Countries have ISO codes (AR, AU, BR, etc.) displayed throughout
 - Player names generated as "Adjective CountryName" (e.g., "Swift Argentina")
+- 200 adjectives available for name generation
+
+### Olympics Phases
+1. **Draws**: Shows all 7 tables with player assignments
+2. **Qualifying**: Human plays Table 1, Tables 2-7 simulated concurrently
+3. **Qualifying Results**: Match reports for all 7 tables, shows finalists
+4. **Finals**: Human plays Grand Final (if qualified) or spectates simulated finals
+5. **Complete**: Champion celebration with personalized victory quote
 
 ### Olympics Structure
 ```
-Group Stage (7 groups × 7 players):
-├── Group 1: Human + 6 CPU countries → Winner advances
-├── Group 2-7: All CPU countries → Winners advance
+Qualifying (7 tables × 7 players):
+├── Table 1: Human + 6 CPU → Human plays full game
+├── Tables 2-7: CPU only → Instantly simulated
 │
-Finals (7 group winners):
-└── Single 13-round game → Grand Champion crowned
+Results Screen:
+├── Match reports with hyperbolic commentary
+├── Winner info for each table
+│
+Grand Final (7 table winners):
+└── Winner crowned World Champion with victory quote
 ```
+
+### Match Reports & Champion Quotes
+- Hyperbolic match reports generated using player adjectives
+- VICTORY_PHRASES, DEFEAT_PHRASES, DRAMA_PHRASES for commentary
+- Champion quotes personalized by adjective (Brave, Clever, Fierce, Calm, etc.)
+- 12+ adjectives have custom champion quotes, others get default
 
 ## Single Player Mode
 - CPU players: Alice, Bob, Charlie, Diana, Edward, Fiona
