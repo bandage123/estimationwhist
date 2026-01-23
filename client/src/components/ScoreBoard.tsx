@@ -1,8 +1,9 @@
-import { Player, RoundResult } from "@shared/schema";
+import { Player, RoundResult, roundConfigs, Suit } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trophy, Crown, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Trophy, Crown, Target, X, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ScoreBoardProps {
@@ -10,6 +11,22 @@ interface ScoreBoardProps {
   roundHistory: RoundResult[];
   currentRound: number;
   showFullHistory?: boolean;
+}
+
+function TrumpIcon({ suit, className }: { suit: Suit | null; className?: string }) {
+  if (suit === null) {
+    return <X className={cn("w-4 h-4 text-muted-foreground", className)} />;
+  }
+  
+  const suitSymbols: Record<Suit, { symbol: string; color: string }> = {
+    clubs: { symbol: "♣", color: "text-foreground" },
+    diamonds: { symbol: "♦", color: "text-red-500" },
+    hearts: { symbol: "♥", color: "text-red-500" },
+    spades: { symbol: "♠", color: "text-foreground" },
+  };
+  
+  const { symbol, color } = suitSymbols[suit];
+  return <span className={cn("text-lg font-bold", color, className)}>{symbol}</span>;
 }
 
 export function ScoreBoard({
@@ -68,52 +85,146 @@ export function ScoreBoard({
         </div>
 
         {showFullHistory && roundHistory.length > 0 && (
-          <div className="border-t pt-4">
-            <h4 className="font-medium text-sm text-muted-foreground mb-2">
-              Round History
-            </h4>
-            <ScrollArea className="h-48">
-              <div className="space-y-3">
-                {roundHistory.map((round) => (
-                  <div key={round.roundNumber} className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Round {round.roundNumber}
-                    </p>
-                    <div className="grid grid-cols-2 gap-1 text-xs">
-                      {round.playerResults.map((result) => (
-                        <div
-                          key={result.playerId}
-                          className={cn(
-                            "flex justify-between px-2 py-1 rounded",
-                            result.tricksWon === result.call && "bg-green-500/10 text-green-600 dark:text-green-400"
-                          )}
-                        >
-                          <span>{result.playerName}</span>
-                          <span>
-                            {result.tricksWon}/{result.call} (+{result.roundScore})
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
+          <RoundHistoryTable 
+            players={players} 
+            roundHistory={roundHistory} 
+          />
         )}
       </CardContent>
     </Card>
   );
 }
 
-interface FinalScoreBoardProps {
+interface RoundHistoryTableProps {
   players: Player[];
   roundHistory: RoundResult[];
 }
 
-export function FinalScoreBoard({ players, roundHistory }: FinalScoreBoardProps) {
+function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
+  const cumulativeScores: Record<string, number[]> = {};
+  players.forEach(p => {
+    cumulativeScores[p.id] = [];
+  });
+  
+  roundHistory.forEach((round, idx) => {
+    round.playerResults.forEach(result => {
+      const prevScore = idx > 0 ? (cumulativeScores[result.playerId][idx - 1] || 0) : 0;
+      cumulativeScores[result.playerId][idx] = prevScore + result.roundScore;
+    });
+  });
+
+  return (
+    <div className="border-t pt-4">
+      <h4 className="font-medium text-sm text-muted-foreground mb-2">
+        Round History
+      </h4>
+      <ScrollArea className="h-48">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left py-2 pr-2 w-12"></th>
+              {players.map(p => (
+                <th key={p.id} colSpan={2} className="text-center py-2 px-1 font-medium">
+                  {p.name}
+                </th>
+              ))}
+            </tr>
+            <tr className="border-b text-muted-foreground">
+              <th className="text-left py-1 pr-2"></th>
+              {players.map(p => (
+                <th key={p.id} colSpan={2} className="py-1">
+                  <div className="flex justify-center gap-1">
+                    <span className="w-8 text-center">Call</span>
+                    <span className="border-l border-dotted border-muted-foreground/50"></span>
+                    <span className="w-8 text-center">Pts</span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {roundHistory.map((round, roundIdx) => {
+              const config = roundConfigs[round.roundNumber - 1];
+              return (
+                <tr key={round.roundNumber} className="border-b border-muted/50">
+                  <td className="py-1.5 pr-2">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium w-4 text-right">{config.cardCount}</span>
+                      <TrumpIcon suit={config.trump} />
+                    </div>
+                  </td>
+                  {players.map(player => {
+                    const result = round.playerResults.find(r => r.playerId === player.id);
+                    if (!result) {
+                      return (
+                        <td key={player.id} colSpan={2} className="text-center py-1.5">-</td>
+                      );
+                    }
+                    const hit = result.tricksWon === result.call;
+                    const missed = result.tricksWon !== result.call;
+                    const cumulativeScore = cumulativeScores[player.id][roundIdx];
+                    
+                    return (
+                      <td 
+                        key={player.id} 
+                        colSpan={2}
+                        className={cn(
+                          "py-1.5",
+                          hit && "bg-green-500/20",
+                          missed && "bg-red-500/20"
+                        )}
+                      >
+                        <div className="flex justify-center gap-1">
+                          <span className={cn(
+                            "w-8 text-center tabular-nums",
+                            hit && "text-green-600 dark:text-green-400 font-medium",
+                            missed && "text-red-600 dark:text-red-400"
+                          )}>
+                            {result.call}
+                          </span>
+                          <span className="border-l border-dotted border-muted-foreground/30"></span>
+                          <span className={cn(
+                            "w-8 text-center tabular-nums",
+                            hit && "text-green-600 dark:text-green-400 font-medium",
+                            missed && "text-red-600 dark:text-red-400"
+                          )}>
+                            {cumulativeScore}
+                          </span>
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </ScrollArea>
+    </div>
+  );
+}
+
+interface FinalScoreBoardProps {
+  players: Player[];
+  roundHistory: RoundResult[];
+  onReturnToMenu?: () => void;
+}
+
+export function FinalScoreBoard({ players, roundHistory, onReturnToMenu }: FinalScoreBoardProps) {
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const winner = sortedPlayers[0];
+
+  const cumulativeScores: Record<string, number[]> = {};
+  sortedPlayers.forEach(p => {
+    cumulativeScores[p.id] = [];
+  });
+  
+  roundHistory.forEach((round, idx) => {
+    round.playerResults.forEach(result => {
+      const prevScore = idx > 0 ? (cumulativeScores[result.playerId][idx - 1] || 0) : 0;
+      cumulativeScores[result.playerId][idx] = prevScore + result.roundScore;
+    });
+  });
 
   return (
     <div className="space-y-6">
@@ -121,7 +232,7 @@ export function FinalScoreBoard({ players, roundHistory }: FinalScoreBoardProps)
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20">
           <Trophy className="w-8 h-8 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold">Game Over!</h2>
+        <h2 className="text-2xl font-bold">Game Complete!</h2>
         <p className="text-muted-foreground">
           <span className="font-semibold text-foreground">{winner.name}</span> wins with{" "}
           <span className="font-bold text-primary">{winner.score}</span> points!
@@ -160,38 +271,87 @@ export function FinalScoreBoard({ players, roundHistory }: FinalScoreBoardProps)
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2">Round</th>
+                  <th className="text-left py-2 pr-3 w-16"></th>
                   {sortedPlayers.map(p => (
-                    <th key={p.id} className="text-center py-2">{p.name}</th>
+                    <th key={p.id} colSpan={2} className="text-center py-2 px-1 font-medium">
+                      {p.name}
+                    </th>
+                  ))}
+                </tr>
+                <tr className="border-b text-muted-foreground text-xs">
+                  <th className="text-left py-1 pr-3"></th>
+                  {sortedPlayers.map(p => (
+                    <th key={p.id} colSpan={2} className="py-1">
+                      <div className="flex justify-center gap-2">
+                        <span className="w-8 text-center">Call</span>
+                        <span className="border-l border-dotted border-muted-foreground/50"></span>
+                        <span className="w-8 text-center">Pts</span>
+                      </div>
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {roundHistory.map((round) => (
-                  <tr key={round.roundNumber} className="border-b border-muted">
-                    <td className="py-2 font-medium">R{round.roundNumber}</td>
-                    {sortedPlayers.map(player => {
-                      const result = round.playerResults.find(r => r.playerId === player.id);
-                      if (!result) return <td key={player.id} className="text-center">-</td>;
-                      const hit = result.tricksWon === result.call;
-                      return (
-                        <td 
-                          key={player.id} 
-                          className={cn(
-                            "text-center py-2",
-                            hit && "text-green-600 dark:text-green-400 font-medium"
-                          )}
-                        >
-                          +{result.roundScore}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                <tr className="font-bold">
-                  <td className="py-2">Total</td>
+                {roundHistory.map((round, roundIdx) => {
+                  const config = roundConfigs[round.roundNumber - 1];
+                  return (
+                    <tr key={round.roundNumber} className="border-b border-muted/50">
+                      <td className="py-2 pr-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium w-5 text-right">{config.cardCount}</span>
+                          <TrumpIcon suit={config.trump} />
+                        </div>
+                      </td>
+                      {sortedPlayers.map(player => {
+                        const result = round.playerResults.find(r => r.playerId === player.id);
+                        if (!result) {
+                          return (
+                            <td key={player.id} colSpan={2} className="text-center py-2">-</td>
+                          );
+                        }
+                        const hit = result.tricksWon === result.call;
+                        const missed = result.tricksWon !== result.call;
+                        const cumulativeScore = cumulativeScores[player.id][roundIdx];
+                        
+                        return (
+                          <td 
+                            key={player.id} 
+                            colSpan={2}
+                            className={cn(
+                              "py-2",
+                              hit && "bg-green-500/20",
+                              missed && "bg-red-500/20"
+                            )}
+                          >
+                            <div className="flex justify-center gap-2">
+                              <span className={cn(
+                                "w-8 text-center tabular-nums",
+                                hit && "text-green-600 dark:text-green-400 font-medium",
+                                missed && "text-red-600 dark:text-red-400"
+                              )}>
+                                {result.call}
+                              </span>
+                              <span className="border-l border-dotted border-muted-foreground/30"></span>
+                              <span className={cn(
+                                "w-8 text-center tabular-nums",
+                                hit && "text-green-600 dark:text-green-400 font-medium",
+                                missed && "text-red-600 dark:text-red-400"
+                              )}>
+                                {cumulativeScore}
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+                <tr className="font-bold bg-muted/30">
+                  <td className="py-2 pr-3">Total</td>
                   {sortedPlayers.map(player => (
-                    <td key={player.id} className="text-center py-2">{player.score}</td>
+                    <td key={player.id} colSpan={2} className="text-center py-2">
+                      {player.score}
+                    </td>
                   ))}
                 </tr>
               </tbody>
@@ -199,6 +359,20 @@ export function FinalScoreBoard({ players, roundHistory }: FinalScoreBoardProps)
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {onReturnToMenu && (
+        <div className="flex justify-center pt-2">
+          <Button 
+            onClick={onReturnToMenu}
+            size="lg"
+            className="gap-2"
+            data-testid="button-return-menu"
+          >
+            <Home className="w-4 h-4" />
+            Return to Main Menu
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

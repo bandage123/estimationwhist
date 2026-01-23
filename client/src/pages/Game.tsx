@@ -142,12 +142,17 @@ export default function Game() {
 
   // Game end phase
   if (gameState.phase === "game_end") {
+    const handleReturnToMenu = () => {
+      window.location.reload();
+    };
+
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="w-full max-w-2xl">
           <FinalScoreBoard
             players={gameState.players}
             roundHistory={gameState.roundHistory}
+            onReturnToMenu={handleReturnToMenu}
           />
         </div>
       </div>
