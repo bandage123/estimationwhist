@@ -569,9 +569,9 @@ export default function Game() {
       </div>
 
       {/* Main content with sidebar */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar - Scoreboard (always visible) */}
-        <div className="w-64 shrink-0 border-r overflow-y-auto p-2">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Left sidebar - Scoreboard (collapsed on mobile, visible on desktop) */}
+        <div className="hidden md:block w-56 shrink-0 border-r overflow-y-auto p-2">
           <ScoreBoard
             players={gameState.players}
             roundHistory={gameState.roundHistory}
@@ -579,9 +579,28 @@ export default function Game() {
             showFullHistory={true}
           />
         </div>
+        
+        {/* Mobile compact scoreboard */}
+        <div className="md:hidden border-b p-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 justify-center text-xs">
+            {gameState.players.map((p, i) => (
+              <div 
+                key={p.id} 
+                className={`px-2 py-1 rounded ${
+                  i === gameState.currentPlayerIndex ? 'bg-primary/20 font-medium' : 'bg-muted'
+                } ${p.id === playerId ? 'ring-1 ring-primary' : ''}`}
+              >
+                <span className="font-medium">{p.name.split(' ')[0]}</span>
+                {p.countryCode && <span className="text-muted-foreground ml-1">({p.countryCode})</span>}
+                <span className="ml-1">{p.score}pts</span>
+                {p.call !== null && <span className="text-muted-foreground ml-1">({p.tricksWon}/{p.call})</span>}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Main game area */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-2 md:p-4">
           {/* Calling phase - show dialog or waiting message */}
           {gameState.phase === "calling" && (
             <>
@@ -650,7 +669,7 @@ export default function Game() {
 
           {/* Playing phase */}
           {gameState.phase === "playing" && (
-            <div className="space-y-4">
+            <div className="space-y-2 md:space-y-4">
               {/* Trick area */}
               <TrickArea
                 currentTrick={gameState.currentTrick}
@@ -665,14 +684,19 @@ export default function Game() {
 
               {/* Player's hand */}
               {currentPlayer && (
-                <div className="mt-6">
-                  <div className="flex items-center justify-center gap-4 mb-3">
-                    <h3 className="text-sm font-medium text-muted-foreground">
-                      Your Hand ({currentPlayer.hand.length} cards)
+                <div className="mt-2 md:mt-6">
+                  <div className="flex items-center justify-center gap-2 md:gap-4 mb-2 md:mb-3">
+                    <h3 className="text-xs md:text-sm font-medium text-muted-foreground">
+                      Your Hand ({currentPlayer.hand.length})
                     </h3>
                     {currentPlayer.call !== null && (
-                      <span className="text-sm text-muted-foreground">
-                        Tricks: {currentPlayer.tricksWon} / {currentPlayer.call}
+                      <span className="text-xs md:text-sm text-muted-foreground">
+                        Tricks: {currentPlayer.tricksWon}/{currentPlayer.call}
+                      </span>
+                    )}
+                    {isMyTurn && (
+                      <span className="text-xs md:text-sm text-primary font-medium">
+                        Your turn!
                       </span>
                     )}
                   </div>
@@ -687,12 +711,6 @@ export default function Game() {
                       leadSuit={gameState.currentTrick.leadSuit}
                     />
                   </div>
-
-                  {isMyTurn && (
-                    <p className="text-center text-sm text-primary mt-2 font-medium">
-                      It's your turn to play a card!
-                    </p>
-                  )}
                 </div>
               )}
             </div>

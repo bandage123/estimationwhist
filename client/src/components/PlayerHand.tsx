@@ -51,10 +51,11 @@ export function PlayerHand({
   const totalWidth = cardWidth + (cards.length - 1) * cardWidth * (1 - overlapFactor);
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-2 md:gap-3">
       <div 
         className="relative flex justify-center"
         style={{ width: `${totalWidth}px`, height: "88px" }}
+        data-testid="player-hand"
       >
         {sortedCards.map((card, index) => {
           const isSelected = selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
@@ -82,8 +83,8 @@ export function PlayerHand({
       </div>
       
       {isCurrentPlayer && selectedCard && (
-        <p className="text-sm text-muted-foreground">
-          Click again to play the selected card
+        <p className="text-xs md:text-sm text-muted-foreground">
+          Tap again to play
         </p>
       )}
     </div>

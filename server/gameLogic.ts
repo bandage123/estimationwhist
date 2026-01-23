@@ -493,9 +493,12 @@ export class Game {
       this.state.currentPlayerIndex = nextIndex;
     }
 
-    // Trigger CPU processing if next player is CPU (for single player mode)
-    if (this.state.isSinglePlayer && !player.isCPU) {
-      this.notifyStateUpdate();
+    // Always notify state update first
+    this.notifyStateUpdate();
+    
+    // Trigger CPU processing if next player is CPU (for single player or Olympics mode)
+    const nextPlayer = this.state.players[this.state.currentPlayerIndex];
+    if ((this.state.isSinglePlayer || this.state.isOlympics) && nextPlayer?.isCPU) {
       this.processCPUTurns();
     }
 
@@ -563,9 +566,12 @@ export class Game {
       // Next player
       this.state.currentPlayerIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
       
-      // Trigger CPU processing if next player is CPU (for single player mode)
-      if (this.state.isSinglePlayer && !player.isCPU) {
-        this.notifyStateUpdate();
+      // Always notify state update first
+      this.notifyStateUpdate();
+      
+      // Trigger CPU processing if next player is CPU (for single player or Olympics mode)
+      const nextPlayer = this.state.players[this.state.currentPlayerIndex];
+      if ((this.state.isSinglePlayer || this.state.isOlympics) && nextPlayer?.isCPU) {
         this.processCPUTurns();
       }
     }
@@ -826,7 +832,7 @@ export class Game {
         }
         
         // Determine winner
-        const winnerIdx = this.determineTrickWinner(trickCards, leadSuit!, config.trump);
+        const winnerIdx = this.simulateTrickWinner(trickCards, leadSuit!, config.trump);
         gamePlayers[winnerIdx].tricksWon++;
         leadPlayerIdx = winnerIdx;
       }
@@ -869,7 +875,7 @@ export class Game {
     return deck;
   }
   
-  private determineTrickWinner(cards: { playerIdx: number; card: Card }[], leadSuit: Suit, trump: Suit | null): number {
+  private simulateTrickWinner(cards: { playerIdx: number; card: Card }[], leadSuit: Suit, trump: Suit | null): number {
     let winningIdx = 0;
     let winningCard = cards[0].card;
     

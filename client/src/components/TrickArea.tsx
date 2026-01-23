@@ -41,53 +41,54 @@ export function TrickArea({
   const currentPlayer = players[currentPlayerIndex];
 
   return (
-    <div className="felt-table rounded-2xl p-6 flex flex-col items-center gap-4 min-h-[300px]">
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <Badge variant="secondary" className="text-sm" data-testid="round-badge">
-          Round {roundNumber}/13
+    <div className="felt-table rounded-xl md:rounded-2xl p-3 md:p-6 flex flex-col items-center gap-2 md:gap-4 min-h-[180px] md:min-h-[300px]">
+      <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3">
+        <Badge variant="secondary" className="text-xs md:text-sm" data-testid="round-badge">
+          R{roundNumber}/13
         </Badge>
         
-        <Badge variant="secondary" className="text-sm" data-testid="cards-badge">
-          {cardCount} {cardCount === 1 ? "card" : "cards"}
+        <Badge variant="secondary" className="text-xs md:text-sm" data-testid="cards-badge">
+          {cardCount}{cardCount === 1 ? "c" : "c"}
         </Badge>
         
         {trump ? (
           <Badge 
             variant="default" 
             className={cn(
-              "text-sm",
+              "text-xs md:text-sm",
               (trump === "hearts" || trump === "diamonds") && "bg-red-600 text-white"
             )}
             data-testid="trump-badge"
           >
-            Trump: {suitSymbols[trump]} {suitNames[trump]}
+            {suitSymbols[trump]}
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-sm" data-testid="trump-badge">
-            No Trump
+          <Badge variant="outline" className="text-xs md:text-sm" data-testid="trump-badge">
+            NT
           </Badge>
         )}
         
         {doublePoints && (
-          <Badge variant="destructive" className="text-sm animate-pulse" data-testid="double-points-badge">
-            2x Points!
+          <Badge variant="destructive" className="text-xs md:text-sm animate-pulse" data-testid="double-points-badge">
+            2x
           </Badge>
         )}
 
-        <Badge variant="outline" className="text-sm" data-testid="trick-badge">
-          Trick {trickNumber}/{cardCount}
+        <Badge variant="outline" className="text-xs md:text-sm" data-testid="trick-badge">
+          T{trickNumber}/{cardCount}
         </Badge>
       </div>
 
       <div className="flex-1 flex items-center justify-center">
         {currentTrick.cards.length > 0 ? (
-          <div className="flex gap-2 flex-wrap justify-center">
+          <div className="flex gap-1 md:gap-2 flex-wrap justify-center">
             {currentTrick.cards.map(({ playerId, card }, index) => {
               const player = players.find(p => p.id === playerId);
+              const shortName = player?.name.split(' ')[0] || "?";
               return (
-                <div key={index} className="flex flex-col items-center gap-1">
-                  <span className="text-xs text-foreground/80 font-medium">
-                    {player?.name || "Unknown"}
+                <div key={index} className="flex flex-col items-center gap-0.5 md:gap-1">
+                  <span className="text-[10px] md:text-xs text-foreground/80 font-medium truncate max-w-[50px] md:max-w-none">
+                    {shortName}
                   </span>
                   <PlayingCard card={card} size="md" />
                 </div>
@@ -96,10 +97,10 @@ export function TrickArea({
           </div>
         ) : (
           <div className="text-center text-muted-foreground">
-            <p className="text-lg">Waiting for cards...</p>
+            <p className="text-sm md:text-lg">Waiting for cards...</p>
             {currentPlayer && (
-              <p className="text-sm mt-1">
-                <span className="font-semibold text-primary">{currentPlayer.name}</span> to play
+              <p className="text-xs md:text-sm mt-1">
+                <span className="font-semibold text-primary">{currentPlayer.name.split(' ')[0]}</span> to play
               </p>
             )}
           </div>
@@ -107,8 +108,8 @@ export function TrickArea({
       </div>
 
       {currentTrick.leadSuit && (
-        <p className="text-sm text-muted-foreground">
-          Lead suit: <span className="font-semibold">{suitSymbols[currentTrick.leadSuit]} {suitNames[currentTrick.leadSuit]}</span>
+        <p className="text-xs md:text-sm text-muted-foreground">
+          Lead: <span className="font-semibold">{suitSymbols[currentTrick.leadSuit]}</span>
         </p>
       )}
     </div>
