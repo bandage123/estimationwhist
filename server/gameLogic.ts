@@ -764,9 +764,7 @@ export class Game {
       
       group.matchReport = generateMatchReport(
         winner.name,
-        winner.name.split(' ')[0],
         runnerUp.name,
-        runnerUp.name.split(' ')[0],
         sortedScores[0].score,
         sortedScores[1].score,
         group.groupNumber
@@ -1001,9 +999,7 @@ export class Game {
     const runnerUp = sortedPlayers[1];
     olympics.groups[0].matchReport = generateMatchReport(
       winner.name,
-      winner.name.split(' ')[0],
       runnerUp.name,
-      runnerUp.name.split(' ')[0],
       winner.score,
       runnerUp.score,
       1
@@ -1056,16 +1052,14 @@ export class Game {
       
       olympics.finalsMatchReport = generateMatchReport(
         winner.name,
-        winner.name.split(' ')[0],
         runnerUp.name,
-        runnerUp.name.split(' ')[0],
         winner.score,
         runnerUp.score,
         0 // Finals
       ).replace("Table 0", "the Grand Final");
-      
+
       olympics.grandChampionId = result.winnerId;
-      olympics.championQuote = generateChampionQuote(winner.name.split(' ')[0]);
+      olympics.championQuote = generateChampionQuote();
       olympics.finalsCompleted = true;
       olympics.currentPhase = "complete";
       this.state.phase = "game_end";
@@ -1088,15 +1082,13 @@ export class Game {
     const runnerUp = sortedPlayers[1];
     
     olympics.grandChampionId = winner.id;
-    olympics.championQuote = generateChampionQuote(winner.name.split(' ')[0]);
+    olympics.championQuote = generateChampionQuote();
     olympics.finalsCompleted = true;
     olympics.currentPhase = "complete";
-    
+
     olympics.finalsMatchReport = generateMatchReport(
       winner.name,
-      winner.name.split(' ')[0],
       runnerUp.name,
-      runnerUp.name.split(' ')[0],
       winner.score,
       runnerUp.score,
       0
@@ -1162,10 +1154,10 @@ class GameManager {
     return game;
   }
 
-  createOlympicsGame(hostName: string, hostId: string, preferredCountryCode?: string, preferredAdjective?: string): Game {
+  createOlympicsGame(hostName: string, hostId: string, preferredCountryCode?: string): Game {
     const game = new Game(hostName, hostId, true, 0);
 
-    // Generate all 49 Olympics players
+    // Generate all 49 World Cup players
     let olympicsPlayers = generateOlympicsPlayers();
 
     // If user selected a country, find it and swap to position 0
@@ -1176,16 +1168,13 @@ class GameManager {
       }
     }
 
-    // If user selected an adjective, use it for the human player
-    const humanAdjective = preferredAdjective || olympicsPlayers[0].name.split(' ')[0];
-
     // Create all 49 player objects
     const allPlayers: Player[] = olympicsPlayers.map((op, index) => {
       if (index === 0) {
-        // Human player
+        // Human player - use their entered name
         return {
           id: hostId,
-          name: `${humanAdjective} ${hostName}`, // "Adjective PlayerName"
+          name: hostName,
           hand: [],
           call: null,
           tricksWon: 0,

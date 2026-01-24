@@ -37,11 +37,8 @@ export function ScoreBoard({
 }: ScoreBoardProps) {
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
-  // Get display name - second word for Olympics mode (Adjective Name), otherwise full name
-  const getDisplayName = (name: string) => {
-    const parts = name.split(' ');
-    return parts.length > 1 ? parts[1] : parts[0];
-  };
+  // Get display name
+  const getDisplayName = (name: string) => name;
 
   return (
     <Card className="h-full">
@@ -115,12 +112,8 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
     });
   });
 
-  // Get short display name - second word for Olympics, otherwise truncated first
-  const getShortName = (name: string) => {
-    const parts = name.split(' ');
-    if (parts.length > 1) return parts[1].slice(0, 4);
-    return name.slice(0, 4);
-  };
+  // Get short display name (first 4 characters)
+  const getShortName = (name: string) => name.slice(0, 4);
 
   return (
     <div className="border-t pt-1">

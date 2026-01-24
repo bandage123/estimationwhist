@@ -10,7 +10,7 @@ interface UseWebSocketReturn {
   error: string | null;
   createGame: (playerName: string) => void;
   createSinglePlayerGame: (playerName: string, cpuCount: number) => void;
-  createOlympicsGame: (playerName: string, countryCode?: string, adjective?: string) => void;
+  createOlympicsGame: (playerName: string, countryCode?: string) => void;
   joinGame: (gameId: string, playerName: string) => void;
   startGame: () => void;
   makeCall: (call: number) => void;
@@ -132,8 +132,8 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "create_single_player_game", playerName, cpuCount });
   }, [sendMessage]);
 
-  const createOlympicsGame = useCallback((playerName: string, countryCode?: string, adjective?: string) => {
-    sendMessage({ type: "create_olympics_game", playerName, countryCode, adjective });
+  const createOlympicsGame = useCallback((playerName: string, countryCode?: string) => {
+    sendMessage({ type: "create_olympics_game", playerName, countryCode });
   }, [sendMessage]);
 
   const joinGame = useCallback((gameId: string, playerName: string) => {

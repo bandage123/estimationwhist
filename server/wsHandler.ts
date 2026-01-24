@@ -103,7 +103,7 @@ export function setupWebSocket(server: Server): void {
           }
 
           case "create_olympics_game": {
-            const game = gameManager.createOlympicsGame(message.playerName, client.playerId, message.countryCode, message.adjective);
+            const game = gameManager.createOlympicsGame(message.playerName, client.playerId, message.countryCode);
             client.gameId = game.state.id;
             
             // Set up state update callback

@@ -28,16 +28,11 @@ const COUNTRIES_SELECT = [
   { name: "South Korea", code: "KR" },
 ];
 
-const ADJECTIVES_SELECT = [
-  "Bold", "Brave", "Calm", "Clever", "Fierce",
-  "Swift", "Mighty", "Noble", "Wise", "Lucky",
-  "Epic", "Grand", "Royal", "Sharp", "Steady",
-];
 
 interface LobbyCreateProps {
   onCreateGame: (playerName: string) => void;
   onCreateSinglePlayerGame: (playerName: string, cpuCount: number) => void;
-  onCreateOlympicsGame: (playerName: string, countryCode?: string, adjective?: string) => void;
+  onCreateOlympicsGame: (playerName: string, countryCode?: string) => void;
   onJoinGame: (gameId: string, playerName: string) => void;
   isConnecting: boolean;
 }
@@ -48,7 +43,6 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
   const [mode, setMode] = useState<"single" | "olympics" | "multi" | "join" | null>(null);
   const [cpuCount, setCpuCount] = useState("3");
   const [selectedCountry, setSelectedCountry] = useState("");
-  const [selectedAdjective, setSelectedAdjective] = useState("");
 
   const handleCreateMultiplayer = () => {
     if (playerName.trim()) {
@@ -66,8 +60,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
     if (playerName.trim()) {
       onCreateOlympicsGame(
         playerName.trim(),
-        selectedCountry && selectedCountry !== "random" ? selectedCountry : undefined,
-        selectedAdjective && selectedAdjective !== "random" ? selectedAdjective : undefined
+        selectedCountry && selectedCountry !== "random" ? selectedCountry : undefined
       );
     }
   };
@@ -164,37 +157,21 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Country</label>
-                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Random" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-48">
-                      <SelectItem value="random">Random</SelectItem>
-                      {COUNTRIES_SELECT.map(c => (
-                        <SelectItem key={c.code} value={c.code}>
-                          <span className="font-mono mr-1">{c.code}</span> {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Style</label>
-                  <Select value={selectedAdjective} onValueChange={setSelectedAdjective}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Random" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-48">
-                      <SelectItem value="random">Random</SelectItem>
-                      {ADJECTIVES_SELECT.map(adj => (
-                        <SelectItem key={adj} value={adj}>{adj}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Country</label>
+                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Random" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-48">
+                    <SelectItem value="random">Random</SelectItem>
+                    {COUNTRIES_SELECT.map(c => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="font-mono mr-1">{c.code}</span> {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <Button
@@ -486,7 +463,7 @@ export function LobbyWaiting({
                       <span className="text-xl">{countryCodeToFlag(player.countryCode || '')}</span>
                       <div className="flex flex-col">
                         <span className={`text-sm font-medium ${!player.isCPU ? '' : 'text-muted-foreground'}`}>
-                          {player.name.split(' ')[1] || player.name}
+                          {player.name}
                         </span>
                         <span className="text-[10px] text-muted-foreground">{player.countryName}</span>
                       </div>

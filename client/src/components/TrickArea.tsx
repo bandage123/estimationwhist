@@ -80,13 +80,10 @@ export function TrickArea({
           <div className="flex gap-1 md:gap-2 flex-wrap justify-center">
             {currentTrick.cards.map(({ playerId, card }, index) => {
               const player = players.find(p => p.id === playerId);
-              // Show name part (second word) for Olympics mode, otherwise first word
-              const nameParts = player?.name.split(' ') || ["?"];
-              const displayName = nameParts.length > 1 ? nameParts[1] : nameParts[0];
               return (
                 <div key={index} className="flex flex-col items-center gap-0.5 md:gap-1">
                   <span className="text-[10px] md:text-xs text-foreground/80 font-medium truncate max-w-[50px] md:max-w-none">
-                    {displayName}
+                    {player?.name || "?"}
                   </span>
                   <PlayingCard card={card} size="md" />
                 </div>
@@ -99,9 +96,7 @@ export function TrickArea({
             {currentPlayer && (
               <p className="text-xs md:text-sm mt-1">
                 <span className="font-semibold text-primary">
-                  {currentPlayer.name.split(' ').length > 1
-                    ? currentPlayer.name.split(' ')[1]
-                    : currentPlayer.name.split(' ')[0]}
+                  {currentPlayer.name}
                 </span> to play
               </p>
             )}

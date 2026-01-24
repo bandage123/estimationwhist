@@ -57,70 +57,19 @@ export const COUNTRIES: Country[] = [
   { name: "United Kingdom", code: "GB", firstName: "William" },
 ];
 
-// 200 Adjectives for player names
-export const ADJECTIVES: string[] = [
-  "Agile", "Alert", "Ambitious", "Ancient", "Artistic",
-  "Athletic", "Audacious", "Balanced", "Bold", "Brave",
-  "Bright", "Brilliant", "Calm", "Capable", "Careful",
-  "Charming", "Cheerful", "Clever", "Composed", "Confident",
-  "Cool", "Courageous", "Crafty", "Creative", "Cunning",
-  "Curious", "Daring", "Dashing", "Decisive", "Dedicated",
-  "Determined", "Diligent", "Diplomatic", "Dynamic", "Eager",
-  "Earnest", "Elegant", "Elite", "Energetic", "Enigmatic",
-  "Epic", "Expert", "Fabulous", "Fearless", "Fierce",
-  "Fiery", "Flashy", "Focused", "Formidable", "Fortunate",
-  "Friendly", "Gallant", "Generous", "Gentle", "Gifted",
-  "Glorious", "Golden", "Graceful", "Grand", "Great",
-  "Gritty", "Handsome", "Happy", "Hardy", "Harmonious",
-  "Hearty", "Heroic", "Honest", "Hopeful", "Humble",
-  "Illustrious", "Imaginative", "Incredible", "Ingenious", "Innovative",
-  "Inspired", "Intense", "Intrepid", "Inventive", "Invincible",
-  "Jolly", "Jovial", "Joyful", "Keen", "Kind",
-  "Knightly", "Legendary", "Lively", "Logical", "Loyal",
-  "Lucky", "Luminous", "Magnificent", "Majestic", "Marvelous",
-  "Masterful", "Merciful", "Methodical", "Mighty", "Mindful",
-  "Modest", "Mystical", "Natural", "Nimble", "Noble",
-  "Notable", "Observant", "Optimistic", "Outstanding", "Patient",
-  "Peaceful", "Perceptive", "Persistent", "Playful", "Pleasant",
-  "Plucky", "Polished", "Popular", "Powerful", "Practical",
-  "Precise", "Principled", "Prodigious", "Proud", "Prudent",
-  "Quick", "Quiet", "Radiant", "Rapid", "Rational",
-  "Ready", "Refined", "Relentless", "Reliable", "Remarkable",
-  "Resilient", "Resolute", "Resourceful", "Respected", "Righteous",
-  "Robust", "Royal", "Rugged", "Sage", "Savvy",
-  "Scholarly", "Seasoned", "Serene", "Sharp", "Shrewd",
-  "Silent", "Skillful", "Sleek", "Smart", "Smooth",
-  "Solid", "Spirited", "Splendid", "Sporty", "Stable",
-  "Stalwart", "Steadfast", "Steady", "Sterling", "Strategic",
-  "Strong", "Stunning", "Stylish", "Sublime", "Subtle",
-  "Supreme", "Swift", "Tactical", "Talented", "Tenacious",
-  "Thoughtful", "Thrifty", "Tireless", "Tolerant", "Tough",
-  "Tranquil", "Tremendous", "Triumphant", "Trustworthy", "Ultimate",
-  "Unbeatable", "Unflinching", "United", "Unstoppable", "Valiant",
-  "Versatile", "Vibrant", "Victorious", "Vigilant", "Vigorous",
-  "Virtuous", "Visionary", "Vivid", "Warm", "Watchful",
-];
-
-// Generate a random Olympics player
-export function generateOlympicsPlayer(country: Country, usedAdjectives: Set<string>): { name: string; countryCode: string; countryName: string } {
-  // Pick a random unused adjective
-  const availableAdjectives = ADJECTIVES.filter(adj => !usedAdjectives.has(adj));
-  const adjective = availableAdjectives[Math.floor(Math.random() * availableAdjectives.length)] || ADJECTIVES[0];
-  usedAdjectives.add(adjective);
-  
+// Generate a World Cup player (just uses first name from country)
+export function generateWorldCupPlayer(country: Country): { name: string; countryCode: string; countryName: string } {
   return {
-    name: `${adjective} ${country.firstName}`,
+    name: country.firstName,
     countryCode: country.code,
     countryName: country.name,
   };
 }
 
-// Generate all 49 Olympics players
+// Generate all 49 World Cup players
 export function generateOlympicsPlayers(): Array<{ name: string; countryCode: string; countryName: string }> {
-  const usedAdjectives = new Set<string>();
   const shuffledCountries = [...COUNTRIES].sort(() => Math.random() - 0.5);
-  
-  return shuffledCountries.map(country => generateOlympicsPlayer(country, usedAdjectives));
+  return shuffledCountries.map(country => generateWorldCupPlayer(country));
 }
 
 // Tournament structure
@@ -221,9 +170,7 @@ const DRAMA_PHRASES = [
 // Generate a hyperbolic match report
 export function generateMatchReport(
   winnerName: string,
-  winnerAdjective: string,
   runnerUpName: string,
-  runnerUpAdjective: string,
   winnerScore: number,
   runnerUpScore: number,
   groupNumber: number
@@ -231,76 +178,45 @@ export function generateMatchReport(
   const drama = DRAMA_PHRASES[Math.floor(Math.random() * DRAMA_PHRASES.length)];
   const victory = VICTORY_PHRASES[Math.floor(Math.random() * VICTORY_PHRASES.length)];
   const defeat = DEFEAT_PHRASES[Math.floor(Math.random() * DEFEAT_PHRASES.length)];
-  
+
   const margin = winnerScore - runnerUpScore;
   const closeGame = margin <= 10;
-  
+
   if (closeGame) {
     return `${drama} ${winnerName} edged out ${runnerUpName} by just ${margin} points in Table ${groupNumber}! ` +
-      `Living up to their "${winnerAdjective}" reputation, they secured victory with a final score of ${winnerScore}-${runnerUpScore}. ` +
-      `The "${runnerUpAdjective}" ${runnerUpName.split(' ')[1]} ${defeat}.`;
+      `A thrilling finish with a final score of ${winnerScore}-${runnerUpScore}. ` +
+      `${runnerUpName} ${defeat}.`;
   } else {
     return `${drama} ${winnerName} ${victory} at Table ${groupNumber}! ` +
-      `True to their "${winnerAdjective}" nature, they claimed a commanding ${winnerScore}-${runnerUpScore} victory. ` +
+      `A commanding ${winnerScore}-${runnerUpScore} victory. ` +
       `${runnerUpName} ${defeat}.`;
   }
 }
 
-// Champion quotes based on adjectives
-const CHAMPION_QUOTES: Record<string, string[]> = {
-  default: [
-    "I always believed in myself!",
-    "This is the greatest day of my life!",
-    "Hard work pays off!",
-    "Dreams really do come true!",
-  ],
-  Brave: [
-    "Fortune favors the brave, and today fortune smiled upon me!",
-    "I faced my fears and emerged victorious!",
-  ],
-  Clever: [
-    "I calculated every move. Victory was inevitable!",
-    "Strategy always beats luck!",
-  ],
-  Fierce: [
-    "I came, I saw, I conquered!",
-    "There was no stopping me today!",
-  ],
-  Calm: [
-    "I stayed composed when it mattered most.",
-    "Peace of mind is the ultimate weapon.",
-  ],
-  Lucky: [
-    "Sometimes you just have to believe in fate!",
-    "The cards were with me today!",
-  ],
-  Bold: [
-    "I took risks and they paid off magnificently!",
-    "Nothing ventured, nothing gained!",
-  ],
-  Swift: [
-    "Quick decisions lead to quick victories!",
-    "Speed is the essence of war!",
-  ],
-  Wise: [
-    "Experience is the greatest teacher.",
-    "Knowledge guided every card I played.",
-  ],
-  Mighty: [
-    "Strength prevails!",
-    "I crushed all who stood before me!",
-  ],
-  Humble: [
-    "I'm just grateful for this opportunity.",
-    "My opponents were all worthy. I was simply fortunate today.",
-  ],
-  Legendary: [
-    "Legends are made, not born. Today I became one!",
-    "They will speak of this victory for generations!",
-  ],
-};
+// Champion quotes
+const CHAMPION_QUOTES: string[] = [
+  "I always believed in myself!",
+  "This is the greatest day of my life!",
+  "Hard work pays off!",
+  "Dreams really do come true!",
+  "Fortune favors the bold, and today fortune smiled upon me!",
+  "I stayed composed when it mattered most.",
+  "Sometimes you just have to believe in fate!",
+  "The cards were with me today!",
+  "I took risks and they paid off magnificently!",
+  "Nothing ventured, nothing gained!",
+  "Quick decisions lead to quick victories!",
+  "Experience is the greatest teacher.",
+  "I'm just grateful for this opportunity.",
+  "My opponents were all worthy. I was simply fortunate today.",
+  "Legends are made, not born. Today I became one!",
+  "They will speak of this victory for generations!",
+  "I came, I saw, I conquered!",
+  "There was no stopping me today!",
+  "I calculated every move. Victory was inevitable!",
+  "Strategy always beats luck!",
+];
 
-export function generateChampionQuote(adjective: string): string {
-  const quotes = CHAMPION_QUOTES[adjective] || CHAMPION_QUOTES.default;
-  return quotes[Math.floor(Math.random() * quotes.length)];
+export function generateChampionQuote(): string {
+  return CHAMPION_QUOTES[Math.floor(Math.random() * CHAMPION_QUOTES.length)];
 }

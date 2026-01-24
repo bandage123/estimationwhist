@@ -27,11 +27,8 @@ export function RoundEndDisplay({
     (a, b) => b.roundScore - a.roundScore
   );
 
-  // Get display name - second word for Olympics mode
-  const getDisplayName = (name: string) => {
-    const parts = name.split(' ');
-    return parts.length > 1 ? parts[1] : parts[0];
-  };
+  // Get display name
+  const getDisplayName = (name: string) => name;
 
   const leader = [...players].sort((a, b) => b.score - a.score)[0];
 

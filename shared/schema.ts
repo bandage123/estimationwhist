@@ -125,7 +125,7 @@ export type SpeedSetting = 0.25 | 0.5 | 1 | 2;
 export type ClientMessage =
   | { type: "create_game"; playerName: string }
   | { type: "create_single_player_game"; playerName: string; cpuCount: number }
-  | { type: "create_olympics_game"; playerName: string; countryCode?: string; adjective?: string }
+  | { type: "create_olympics_game"; playerName: string; countryCode?: string }
   | { type: "join_game"; gameId: string; playerName: string }
   | { type: "start_game" }
   | { type: "make_call"; call: number }

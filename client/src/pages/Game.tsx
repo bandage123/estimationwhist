@@ -132,11 +132,8 @@ export default function Game() {
     return String.fromCodePoint(...codePoints);
   };
 
-  // Get display name (second word for Olympics)
-  const getDisplayName = (name: string) => {
-    const parts = name.split(' ');
-    return parts.length > 1 ? parts[1] : parts[0];
-  };
+  // Get display name
+  const getDisplayName = (name: string) => name;
 
   // Olympics draws phase - show table assignments before qualifying
   if (gameState.phase === "lobby" && gameState.isOlympics && gameState.olympicsState?.currentPhase === "draws") {
@@ -382,7 +379,6 @@ export default function Game() {
     if (isOlympics && olympics.currentPhase === "complete") {
       const champion = gameState.allOlympicsPlayers?.find(p => p.id === olympics.grandChampionId);
       const isChampion = olympics.grandChampionId === playerId;
-      const adjective = champion?.name.split(' ')[0] || "";
       
       return (
         <div className="min-h-screen bg-background flex flex-col">
@@ -437,7 +433,7 @@ export default function Game() {
                 </p>
               ) : (
                 <p className="text-muted-foreground">
-                  Better luck next time! The {adjective} champion has claimed the crown.
+                  Better luck next time! {champion?.name} from {champion?.countryName} has claimed the crown.
                 </p>
               )}
               <Button onClick={handleReturnToMenu} size="lg" data-testid="button-olympics-finish">
@@ -608,24 +604,19 @@ export default function Game() {
         {/* Mobile compact scoreboard */}
         <div className="md:hidden border-b p-2 shrink-0">
           <div className="flex flex-wrap items-center gap-2 justify-center text-xs">
-            {gameState.players.map((p, i) => {
-              // Show name part (second word) for Olympics mode
-              const nameParts = p.name.split(' ');
-              const displayName = nameParts.length > 1 ? nameParts[1] : nameParts[0];
-              return (
-                <div
-                  key={p.id}
-                  className={`px-2 py-1 rounded ${
-                    i === gameState.currentPlayerIndex ? 'bg-primary/20 font-medium' : 'bg-muted'
-                  } ${p.id === playerId ? 'ring-1 ring-primary' : ''}`}
-                >
-                  <span className="font-medium">{displayName}</span>
-                  {p.countryCode && <span className="text-muted-foreground ml-1">({p.countryCode})</span>}
-                  <span className="ml-1">{p.score}pts</span>
-                  {p.call !== null && <span className="text-muted-foreground ml-1">({p.tricksWon}/{p.call})</span>}
-                </div>
-              );
-            })}
+            {gameState.players.map((p, i) => (
+              <div
+                key={p.id}
+                className={`px-2 py-1 rounded ${
+                  i === gameState.currentPlayerIndex ? 'bg-primary/20 font-medium' : 'bg-muted'
+                } ${p.id === playerId ? 'ring-1 ring-primary' : ''}`}
+              >
+                <span className="font-medium">{p.name}</span>
+                {p.countryCode && <span className="text-muted-foreground ml-1">({p.countryCode})</span>}
+                <span className="ml-1">{p.score}pts</span>
+                {p.call !== null && <span className="text-muted-foreground ml-1">({p.tricksWon}/{p.call})</span>}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -665,11 +656,7 @@ export default function Game() {
                     <p className="text-muted-foreground">
                       Waiting for{" "}
                       <span className="font-semibold text-foreground">
-                        {(() => {
-                          const name = gameState.players[gameState.currentPlayerIndex]?.name || "";
-                          const parts = name.split(' ');
-                          return parts.length > 1 ? parts[1] : parts[0];
-                        })()}
+                        {gameState.players[gameState.currentPlayerIndex]?.name || ""}
                       </span>{" "}
                       to make their call...
                     </p>
@@ -677,11 +664,7 @@ export default function Game() {
                       Calls so far:{" "}
                       {gameState.players
                         .filter((p) => p.call !== null)
-                        .map((p) => {
-                          const parts = p.name.split(' ');
-                          const displayName = parts.length > 1 ? parts[1] : parts[0];
-                          return `${displayName}: ${p.call}`;
-                        })
+                        .map((p) => `${p.name}: ${p.call}`)
                         .join(", ") || "None yet"}
                     </div>
                   </div>
