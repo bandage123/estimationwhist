@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { GameState, ClientMessage, ServerMessage, Card } from "@shared/schema";
+import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting } from "@shared/schema";
 
 interface UseWebSocketReturn {
   gameState: GameState | null;
@@ -10,7 +10,7 @@ interface UseWebSocketReturn {
   error: string | null;
   createGame: (playerName: string) => void;
   createSinglePlayerGame: (playerName: string, cpuCount: number) => void;
-  createOlympicsGame: (playerName: string) => void;
+  createOlympicsGame: (playerName: string, countryCode?: string, adjective?: string) => void;
   joinGame: (gameId: string, playerName: string) => void;
   startGame: () => void;
   makeCall: (call: number) => void;
@@ -19,6 +19,7 @@ interface UseWebSocketReturn {
   nextOlympicsGame: () => void;
   startOlympicsQualifying: () => void;
   startOlympicsFinals: () => void;
+  setSpeed: (speed: SpeedSetting) => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -131,8 +132,8 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "create_single_player_game", playerName, cpuCount });
   }, [sendMessage]);
 
-  const createOlympicsGame = useCallback((playerName: string) => {
-    sendMessage({ type: "create_olympics_game", playerName });
+  const createOlympicsGame = useCallback((playerName: string, countryCode?: string, adjective?: string) => {
+    sendMessage({ type: "create_olympics_game", playerName, countryCode, adjective });
   }, [sendMessage]);
 
   const joinGame = useCallback((gameId: string, playerName: string) => {
@@ -168,6 +169,10 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "start_olympics_finals" });
   }, [sendMessage]);
 
+  const setSpeed = useCallback((speed: SpeedSetting) => {
+    sendMessage({ type: "set_speed", speed });
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -186,5 +191,6 @@ export function useWebSocket(): UseWebSocketReturn {
     nextOlympicsGame,
     startOlympicsQualifying,
     startOlympicsFinals,
+    setSpeed,
   };
 }

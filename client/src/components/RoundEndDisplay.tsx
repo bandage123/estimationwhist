@@ -1,6 +1,5 @@
 import { Player, RoundResult } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,88 +27,92 @@ export function RoundEndDisplay({
     (a, b) => b.roundScore - a.roundScore
   );
 
+  // Get display name - second word for Olympics mode
+  const getDisplayName = (name: string) => {
+    const parts = name.split(' ');
+    return parts.length > 1 ? parts[1] : parts[0];
+  };
+
+  const leader = [...players].sort((a, b) => b.score - a.score)[0];
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Badge variant="secondary">Round {roundNumber}/13</Badge>
+    <div className="flex items-center justify-center p-2 bg-background">
+      <div className="w-full max-w-md space-y-2">
+        <div className="text-center space-y-1">
+          <div className="flex items-center justify-center gap-2">
+            <Badge variant="secondary" className="text-xs">R{roundNumber}/13</Badge>
             {doublePoints && (
-              <Badge variant="destructive">2x Points!</Badge>
+              <Badge variant="destructive" className="text-xs">2x</Badge>
             )}
           </div>
-          <CardTitle className="text-2xl font-serif">Round Complete!</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
-            {sortedResults.map((result, index) => {
-              const hitTarget = result.tricksWon === result.call;
-              const player = players.find(p => p.id === result.playerId);
+          <h2 className="text-lg font-bold">Round Complete</h2>
+        </div>
 
-              return (
-                <div
-                  key={result.playerId}
-                  className={cn(
-                    "flex items-center justify-between p-4 rounded-lg",
-                    hitTarget ? "bg-green-500/10 border border-green-500/30" : "bg-muted/50"
+        <div className="grid grid-cols-1 gap-1">
+          {sortedResults.map((result) => {
+            const hitTarget = result.tricksWon === result.call;
+            const player = players.find(p => p.id === result.playerId);
+
+            return (
+              <div
+                key={result.playerId}
+                className={cn(
+                  "flex items-center justify-between px-2 py-1 rounded text-sm",
+                  hitTarget ? "bg-green-500/10" : "bg-muted/30"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {hitTarget ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   )}
-                >
-                  <div className="flex items-center gap-3">
-                    {hitTarget ? (
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <XCircle className="w-5 h-5 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="font-medium">{result.playerName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Called {result.call}, won {result.tricksWon}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={cn(
-                      "text-xl font-bold",
-                      hitTarget ? "text-green-500" : "text-muted-foreground"
-                    )}>
-                      +{result.roundScore}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Total: {player?.score}
-                    </p>
-                  </div>
+                  <span className="font-medium truncate">{getDisplayName(result.playerName)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {result.call}→{result.tricksWon}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "font-bold",
+                    hitTarget ? "text-green-500" : "text-muted-foreground"
+                  )}>
+                    +{result.roundScore}
+                  </span>
+                  <span className="text-xs text-muted-foreground w-8 text-right">
+                    {player?.score}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10">
-            <Trophy className="w-5 h-5 text-primary" />
-            <div>
-              <p className="text-sm font-medium">Current Leader</p>
-              <p className="text-lg font-bold text-primary">
-                {[...players].sort((a, b) => b.score - a.score)[0]?.name} -{" "}
-                {[...players].sort((a, b) => b.score - a.score)[0]?.score} pts
-              </p>
-            </div>
+        <div className="flex items-center justify-between px-2 py-1.5 rounded bg-primary/10">
+          <div className="flex items-center gap-1.5">
+            <Trophy className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Leader:</span>
           </div>
+          <span className="text-sm font-bold text-primary">
+            {getDisplayName(leader?.name || "")} - {leader?.score} pts
+          </span>
+        </div>
 
-          {isHost ? (
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={onNextRound}
-              data-testid="button-next-round"
-            >
-              {isLastRound ? "View Final Results" : `Continue to Round ${roundNumber + 1}`}
-            </Button>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground">
-              Waiting for the host to continue...
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        {isHost ? (
+          <Button
+            className="w-full"
+            size="sm"
+            onClick={onNextRound}
+            data-testid="button-next-round"
+          >
+            {isLastRound ? "View Final Results" : `Round ${roundNumber + 1} →`}
+          </Button>
+        ) : (
+          <p className="text-center text-xs text-muted-foreground">
+            Waiting for host...
+          </p>
+        )}
+      </div>
     </div>
   );
 }

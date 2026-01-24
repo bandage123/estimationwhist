@@ -46,28 +46,24 @@ export function TrickArea({
         <Badge variant="secondary" className="text-xs md:text-sm" data-testid="round-badge">
           R{roundNumber}/13
         </Badge>
-        
-        <Badge variant="secondary" className="text-xs md:text-sm" data-testid="cards-badge">
-          {cardCount}{cardCount === 1 ? "c" : "c"}
-        </Badge>
-        
+
         {trump ? (
-          <Badge 
-            variant="default" 
+          <Badge
+            variant="default"
             className={cn(
               "text-xs md:text-sm",
               (trump === "hearts" || trump === "diamonds") && "bg-red-600 text-white"
             )}
             data-testid="trump-badge"
           >
-            {suitSymbols[trump]}
+            {suitSymbols[trump]} {suitNames[trump]}
           </Badge>
         ) : (
           <Badge variant="outline" className="text-xs md:text-sm" data-testid="trump-badge">
-            NT
+            No Trump
           </Badge>
         )}
-        
+
         {doublePoints && (
           <Badge variant="destructive" className="text-xs md:text-sm animate-pulse" data-testid="double-points-badge">
             2x
@@ -75,7 +71,7 @@ export function TrickArea({
         )}
 
         <Badge variant="outline" className="text-xs md:text-sm" data-testid="trick-badge">
-          T{trickNumber}/{cardCount}
+          Trick {trickNumber}/{cardCount}
         </Badge>
       </div>
 
@@ -84,11 +80,13 @@ export function TrickArea({
           <div className="flex gap-1 md:gap-2 flex-wrap justify-center">
             {currentTrick.cards.map(({ playerId, card }, index) => {
               const player = players.find(p => p.id === playerId);
-              const shortName = player?.name.split(' ')[0] || "?";
+              // Show name part (second word) for Olympics mode, otherwise first word
+              const nameParts = player?.name.split(' ') || ["?"];
+              const displayName = nameParts.length > 1 ? nameParts[1] : nameParts[0];
               return (
                 <div key={index} className="flex flex-col items-center gap-0.5 md:gap-1">
                   <span className="text-[10px] md:text-xs text-foreground/80 font-medium truncate max-w-[50px] md:max-w-none">
-                    {shortName}
+                    {displayName}
                   </span>
                   <PlayingCard card={card} size="md" />
                 </div>
@@ -100,7 +98,11 @@ export function TrickArea({
             <p className="text-sm md:text-lg">Waiting for cards...</p>
             {currentPlayer && (
               <p className="text-xs md:text-sm mt-1">
-                <span className="font-semibold text-primary">{currentPlayer.name.split(' ')[0]}</span> to play
+                <span className="font-semibold text-primary">
+                  {currentPlayer.name.split(' ').length > 1
+                    ? currentPlayer.name.split(' ')[1]
+                    : currentPlayer.name.split(' ')[0]}
+                </span> to play
               </p>
             )}
           </div>

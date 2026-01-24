@@ -7,11 +7,11 @@ import { TrickArea } from "@/components/TrickArea";
 import { PlayerHand } from "@/components/PlayerHand";
 import { ScoreBoard, FinalScoreBoard } from "@/components/ScoreBoard";
 import { RoundEndDisplay } from "@/components/RoundEndDisplay";
-import { Card, Suit, Player } from "@shared/schema";
+import { Card, Suit, Player, SpeedSetting } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown } from "lucide-react";
+import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge } from "lucide-react";
 
 export default function Game() {
   const {
@@ -32,10 +32,24 @@ export default function Game() {
     nextOlympicsGame,
     startOlympicsQualifying,
     startOlympicsFinals,
+    setSpeed,
   } = useWebSocket();
 
   const { toast } = useToast();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [currentSpeed, setCurrentSpeed] = useState<SpeedSetting>(1);
+
+  const handleSpeedChange = (speed: SpeedSetting) => {
+    setCurrentSpeed(speed);
+    setSpeed(speed);
+  };
+
+  const speedLabels: Record<SpeedSetting, string> = {
+    0.25: "4x",
+    0.5: "2x",
+    1: "1x",
+    2: "½x",
+  };
 
   // Get current player
   const currentPlayer = useMemo(() => {
@@ -108,61 +122,70 @@ export default function Game() {
     );
   }
 
+  // Helper to convert country code to flag emoji
+  const countryCodeToFlag = (code: string) => {
+    if (!code || code.length !== 2) return '';
+    const codePoints = code
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  };
+
+  // Get display name (second word for Olympics)
+  const getDisplayName = (name: string) => {
+    const parts = name.split(' ');
+    return parts.length > 1 ? parts[1] : parts[0];
+  };
+
   // Olympics draws phase - show table assignments before qualifying
   if (gameState.phase === "lobby" && gameState.isOlympics && gameState.olympicsState?.currentPhase === "draws") {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <div className="p-2 border-b flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReturnToMenu}
-            className="gap-2"
-            data-testid="button-return-menu-top"
-          >
-            <Home className="w-4 h-4" />
-            Main Menu
+        <div className="p-1.5 border-b flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={handleReturnToMenu} className="gap-1 h-7 text-xs">
+            <Home className="w-3 h-3" />
+            Menu
           </Button>
-          <Badge variant="secondary" className="gap-1 bg-yellow-500/10 border-yellow-500/30">
+          <Badge variant="secondary" className="gap-1 bg-yellow-500/10 border-yellow-500/30 text-xs">
             <Trophy className="w-3 h-3 text-yellow-500" />
-            The Whist Olympics
+            The Draws
           </Badge>
         </div>
-        <div className="flex-1 overflow-auto p-4">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold">The Table Draws</h1>
-              <p className="text-muted-foreground">49 countries have been drawn into 7 tables of 7 players each</p>
-              <p className="text-sm text-muted-foreground">Winner of each table advances to the Grand Final!</p>
+        <div className="flex-1 p-2">
+          <div className="max-w-6xl mx-auto space-y-2">
+            <div className="text-center">
+              <h1 className="text-xl font-bold">Table Draws</h1>
+              <p className="text-xs text-muted-foreground">49 countries in 7 tables - winners advance to finals</p>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-1.5">
               {gameState.olympicsState.groups.map((group, groupIdx) => {
-                const groupPlayers = group.playerIds.map(id => 
+                const groupPlayers = group.playerIds.map(id =>
                   gameState.allOlympicsPlayers?.find(p => p.id === id)
                 );
                 const isHumanGroup = groupIdx === 0;
-                
+
                 return (
-                  <div 
+                  <div
                     key={group.groupNumber}
-                    className={`rounded-lg border p-4 ${isHumanGroup ? 'border-primary bg-primary/5' : 'bg-card'}`}
+                    className={`rounded border p-1.5 ${isHumanGroup ? 'border-primary bg-primary/5' : 'bg-card'}`}
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-bold">Table {group.groupNumber}</h3>
-                      {isHumanGroup && <Badge variant="default">Your Table</Badge>}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold">T{group.groupNumber}</span>
+                      {isHumanGroup && <Badge variant="default" className="h-4 text-[9px] px-1">You</Badge>}
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-0.5">
                       {groupPlayers.map((player) => (
-                        <div 
+                        <div
                           key={player?.id}
-                          className={`flex items-center gap-2 text-sm p-1.5 rounded ${
-                            player && !player.isCPU ? 'bg-primary/10' : ''
+                          className={`flex items-center gap-1 text-[10px] px-1 py-0.5 rounded ${
+                            player && !player.isCPU ? 'bg-primary/20 font-medium' : ''
                           }`}
                         >
-                          <span className="font-mono text-xs w-6 text-muted-foreground">{player?.countryCode}</span>
-                          <span className={player && !player.isCPU ? 'font-medium' : 'text-muted-foreground'}>
-                            {player?.name}
+                          <span className="text-sm leading-none">{countryCodeToFlag(player?.countryCode || '')}</span>
+                          <span className={player && !player.isCPU ? '' : 'text-muted-foreground'}>
+                            {getDisplayName(player?.name || '')}
                           </span>
                         </div>
                       ))}
@@ -171,16 +194,11 @@ export default function Game() {
                 );
               })}
             </div>
-            
-            <div className="flex justify-center">
-              <Button 
-                size="lg" 
-                onClick={startOlympicsQualifying}
-                className="gap-2"
-                data-testid="button-start-qualifying"
-              >
-                <Flag className="w-4 h-4" />
-                Start Qualifying Round
+
+            <div className="flex justify-center pt-1">
+              <Button size="sm" onClick={startOlympicsQualifying} className="gap-1" data-testid="button-start-qualifying">
+                <Flag className="w-3 h-3" />
+                Start Qualifying
               </Button>
             </div>
           </div>
@@ -192,92 +210,79 @@ export default function Game() {
   // Olympics qualifying results phase
   if (gameState.phase === "game_end" && gameState.isOlympics && gameState.olympicsState?.currentPhase === "qualifying_results") {
     const olympics = gameState.olympicsState;
-    const humanPlayer = gameState.players.find(p => p.id === playerId);
-    
+
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <div className="p-2 border-b flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleReturnToMenu}
-            className="gap-2"
-            data-testid="button-return-menu-top"
-          >
-            <Home className="w-4 h-4" />
-            Main Menu
+        <div className="p-1.5 border-b flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={handleReturnToMenu} className="gap-1 h-7 text-xs">
+            <Home className="w-3 h-3" />
+            Menu
           </Button>
-          <Badge variant="secondary" className="gap-1 bg-yellow-500/10 border-yellow-500/30">
+          <Badge variant="secondary" className="gap-1 bg-yellow-500/10 border-yellow-500/30 text-xs">
             <Trophy className="w-3 h-3 text-yellow-500" />
-            Qualifying Results
+            Results
           </Badge>
         </div>
-        <div className="flex-1 overflow-auto p-4">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold">Qualifying Round Complete!</h1>
+        <div className="flex-1 p-2 overflow-auto">
+          <div className="max-w-4xl mx-auto space-y-2">
+            <div className="text-center">
+              <h1 className="text-lg font-bold">Qualifying Complete</h1>
               {olympics.humanQualified ? (
-                <p className="text-xl text-green-500 font-semibold">Congratulations! You advance to the Grand Final!</p>
+                <p className="text-sm text-green-500 font-medium">You advance to the Grand Final!</p>
               ) : (
-                <p className="text-muted-foreground">You did not qualify. Watch the Finals as a spectator!</p>
+                <p className="text-xs text-muted-foreground">You did not qualify - watch the Finals!</p>
               )}
             </div>
-            
-            {/* Match Reports */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold text-center">Match Reports</h2>
+
+            {/* Match Reports - compact grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
               {olympics.groups.map((group) => {
                 const winner = gameState.allOlympicsPlayers?.find(p => p.id === group.winnerId);
                 const isHumanGroup = group.groupNumber === 1;
-                
+
                 return (
-                  <div 
+                  <div
                     key={group.groupNumber}
-                    className={`p-4 rounded-lg border ${isHumanGroup ? 'border-primary bg-primary/5' : 'bg-card'}`}
+                    className={`p-2 rounded border text-xs ${isHumanGroup ? 'border-primary bg-primary/5' : 'bg-card'}`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline">Table {group.groupNumber}</Badge>
-                      <span className="font-medium">Winner: {winner?.name}</span>
-                      <span className="text-xs text-muted-foreground font-mono">({winner?.countryCode})</span>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="font-bold">T{group.groupNumber}</span>
+                      <span className="text-sm">{countryCodeToFlag(winner?.countryCode || '')}</span>
+                      <span className="font-medium">{getDisplayName(winner?.name || '')}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground italic">
-                      "{group.matchReport}"
+                    <p className="text-[10px] text-muted-foreground italic line-clamp-2">
+                      {group.matchReport}
                     </p>
                   </div>
                 );
               })}
             </div>
-            
+
             {/* Finalists */}
-            <div className="p-4 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-lg">
-              <h3 className="font-bold text-center mb-3">Grand Finalists</h3>
-              <div className="flex flex-wrap justify-center gap-2">
+            <div className="p-2 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded">
+              <h3 className="text-xs font-bold text-center mb-1.5">Grand Finalists</h3>
+              <div className="flex flex-wrap justify-center gap-1">
                 {olympics.finalsPlayerIds.map(id => {
                   const player = gameState.allOlympicsPlayers?.find(p => p.id === id);
                   const isHuman = id === playerId;
                   return (
-                    <Badge 
-                      key={id} 
+                    <Badge
+                      key={id}
                       variant={isHuman ? "default" : "secondary"}
-                      className="gap-1"
+                      className="gap-0.5 text-[10px] h-5"
                     >
-                      <span className="font-mono text-xs">{player?.countryCode}</span>
-                      {player?.name.split(' ')[1]}
+                      <span className="text-xs">{countryCodeToFlag(player?.countryCode || '')}</span>
+                      {getDisplayName(player?.name || '')}
                     </Badge>
                   );
                 })}
               </div>
             </div>
-            
+
             <div className="flex justify-center">
-              <Button 
-                size="lg" 
-                onClick={startOlympicsFinals}
-                className="gap-2"
-                data-testid="button-start-finals"
-              >
-                <Trophy className="w-4 h-4 text-yellow-500" />
-                {olympics.humanQualified ? "Play the Grand Final" : "Watch the Grand Final"}
+              <Button size="sm" onClick={startOlympicsFinals} className="gap-1" data-testid="button-start-finals">
+                <Trophy className="w-3 h-3 text-yellow-500" />
+                {olympics.humanQualified ? "Play Final" : "Watch Final"}
               </Button>
             </div>
           </div>
@@ -563,15 +568,35 @@ export default function Game() {
           <Home className="w-4 h-4" />
           Main Menu
         </Button>
-        <div className="text-sm text-muted-foreground">
-          Round {gameState.currentRound}/13
+        <div className="flex items-center gap-4">
+          {(gameState.isSinglePlayer || gameState.isOlympics) && (
+            <div className="flex items-center gap-1">
+              <Gauge className="w-3 h-3 text-muted-foreground" />
+              <div className="flex gap-0.5">
+                {([0.25, 0.5, 1, 2] as SpeedSetting[]).map((speed) => (
+                  <Button
+                    key={speed}
+                    variant={currentSpeed === speed ? "default" : "ghost"}
+                    size="sm"
+                    className="h-6 px-1.5 text-xs"
+                    onClick={() => handleSpeedChange(speed)}
+                  >
+                    {speedLabels[speed]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="text-sm text-muted-foreground">
+            Round {gameState.currentRound}/13
+          </div>
         </div>
       </div>
 
       {/* Main content with sidebar */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left sidebar - Scoreboard (collapsed on mobile, visible on desktop) */}
-        <div className="hidden md:block w-56 shrink-0 border-r overflow-y-auto p-2">
+        <div className="hidden md:block w-64 shrink-0 border-r overflow-y-auto p-1">
           <ScoreBoard
             players={gameState.players}
             roundHistory={gameState.roundHistory}
@@ -579,23 +604,28 @@ export default function Game() {
             showFullHistory={true}
           />
         </div>
-        
+
         {/* Mobile compact scoreboard */}
         <div className="md:hidden border-b p-2 shrink-0">
           <div className="flex flex-wrap items-center gap-2 justify-center text-xs">
-            {gameState.players.map((p, i) => (
-              <div 
-                key={p.id} 
-                className={`px-2 py-1 rounded ${
-                  i === gameState.currentPlayerIndex ? 'bg-primary/20 font-medium' : 'bg-muted'
-                } ${p.id === playerId ? 'ring-1 ring-primary' : ''}`}
-              >
-                <span className="font-medium">{p.name.split(' ')[0]}</span>
-                {p.countryCode && <span className="text-muted-foreground ml-1">({p.countryCode})</span>}
-                <span className="ml-1">{p.score}pts</span>
-                {p.call !== null && <span className="text-muted-foreground ml-1">({p.tricksWon}/{p.call})</span>}
-              </div>
-            ))}
+            {gameState.players.map((p, i) => {
+              // Show name part (second word) for Olympics mode
+              const nameParts = p.name.split(' ');
+              const displayName = nameParts.length > 1 ? nameParts[1] : nameParts[0];
+              return (
+                <div
+                  key={p.id}
+                  className={`px-2 py-1 rounded ${
+                    i === gameState.currentPlayerIndex ? 'bg-primary/20 font-medium' : 'bg-muted'
+                  } ${p.id === playerId ? 'ring-1 ring-primary' : ''}`}
+                >
+                  <span className="font-medium">{displayName}</span>
+                  {p.countryCode && <span className="text-muted-foreground ml-1">({p.countryCode})</span>}
+                  <span className="ml-1">{p.score}pts</span>
+                  {p.call !== null && <span className="text-muted-foreground ml-1">({p.tricksWon}/{p.call})</span>}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -635,7 +665,11 @@ export default function Game() {
                     <p className="text-muted-foreground">
                       Waiting for{" "}
                       <span className="font-semibold text-foreground">
-                        {gameState.players[gameState.currentPlayerIndex]?.name}
+                        {(() => {
+                          const name = gameState.players[gameState.currentPlayerIndex]?.name || "";
+                          const parts = name.split(' ');
+                          return parts.length > 1 ? parts[1] : parts[0];
+                        })()}
                       </span>{" "}
                       to make their call...
                     </p>
@@ -643,7 +677,11 @@ export default function Game() {
                       Calls so far:{" "}
                       {gameState.players
                         .filter((p) => p.call !== null)
-                        .map((p) => `${p.name}: ${p.call}`)
+                        .map((p) => {
+                          const parts = p.name.split(' ');
+                          const displayName = parts.length > 1 ? parts[1] : parts[0];
+                          return `${displayName}: ${p.call}`;
+                        })
                         .join(", ") || "None yet"}
                     </div>
                   </div>

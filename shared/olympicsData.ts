@@ -176,6 +176,13 @@ const VICTORY_PHRASES = [
   "demonstrated championship-level play",
   "crushed all opposition",
   "rose to legendary status",
+  "outplayed the entire field",
+  "claimed a convincing victory",
+  "proved unstoppable",
+  "delivered a masterclass performance",
+  "seized control early and never let go",
+  "executed a near-perfect strategy",
+  "showcased world-class technique",
 ];
 
 const DEFEAT_PHRASES = [
@@ -185,6 +192,11 @@ const DEFEAT_PHRASES = [
   "couldn't overcome the fierce competition",
   "faced a tough battle",
   "will be back stronger next time",
+  "gave it everything but came up short",
+  "put up a spirited fight",
+  "was outmaneuvered in the closing rounds",
+  "ran out of steam in the final stretch",
+  "fell victim to superior card play",
 ];
 
 const DRAMA_PHRASES = [
@@ -196,6 +208,14 @@ const DRAMA_PHRASES = [
   "In a stunning display of skill,",
   "The crowd went wild when",
   "History was made today as",
+  "After intense competition,",
+  "In a hard-fought contest,",
+  "When the dust settled,",
+  "In dramatic fashion,",
+  "Following a tense final round,",
+  "In a display of pure determination,",
+  "After 13 grueling rounds,",
+  "In an unforgettable showdown,",
 ];
 
 // Generate a hyperbolic match report

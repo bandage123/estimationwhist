@@ -103,7 +103,7 @@ export function setupWebSocket(server: Server): void {
           }
 
           case "create_olympics_game": {
-            const game = gameManager.createOlympicsGame(message.playerName, client.playerId);
+            const game = gameManager.createOlympicsGame(message.playerName, client.playerId, message.countryCode, message.adjective);
             client.gameId = game.state.id;
             
             // Set up state update callback
@@ -214,21 +214,21 @@ export function setupWebSocket(server: Server): void {
               sendError(ws, "Game not found");
               return;
             }
-            
+
             if (!game.playCard(client.playerId, message.card)) {
               sendError(ws, "Invalid card play");
               return;
             }
-            
+
             broadcastToGame(game);
-            
+
             // Trigger CPU processing if next player is CPU (for single player or Olympics)
             game.triggerCPUProcessingIfNeeded();
-            
-            // Broadcast again after trick resolution
+
+            // Broadcast again after trick resolution (scaled by speed)
             setTimeout(() => {
               broadcastToGame(game);
-            }, 2100);
+            }, 2100 * game.getSpeed());
             break;
           }
 
@@ -289,6 +289,14 @@ export function setupWebSocket(server: Server): void {
             
             game.startOlympicsFinals();
             broadcastToGame(game);
+            break;
+          }
+
+          case "set_speed": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (game) {
+              game.setSpeed(message.speed);
+            }
             break;
           }
 

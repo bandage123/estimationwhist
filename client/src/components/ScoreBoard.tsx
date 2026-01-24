@@ -37,38 +37,44 @@ export function ScoreBoard({
 }: ScoreBoardProps) {
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
+  // Get display name - second word for Olympics mode (Adjective Name), otherwise full name
+  const getDisplayName = (name: string) => {
+    const parts = name.split(' ');
+    return parts.length > 1 ? parts[1] : parts[0];
+  };
+
   return (
     <Card className="h-full">
-      <CardHeader className="py-2 px-3">
-        <CardTitle className="flex items-center gap-1.5 text-sm">
-          <Trophy className="w-4 h-4 text-primary" />
+      <CardHeader className="py-1 px-2">
+        <CardTitle className="flex items-center gap-1 text-xs">
+          <Trophy className="w-3 h-3 text-primary" />
           Scores
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 px-2 py-1">
-        <div className="space-y-0.5">
+      <CardContent className="space-y-1 px-1 py-0.5">
+        <div className="space-y-0">
           {sortedPlayers.map((player, index) => (
             <div
               key={player.id}
               data-testid={`scoreboard-player-${player.name}`}
               className={cn(
-                "flex items-center justify-between px-1.5 py-1 rounded text-xs",
+                "flex items-center justify-between px-1 py-0.5 rounded text-[10px]",
                 index === 0 && "bg-primary/10",
                 player.isDealer && "ring-1 ring-primary/50"
               )}
             >
-              <div className="flex items-center gap-1 min-w-0">
+              <div className="flex items-center gap-0.5 min-w-0">
                 {index === 0 && player.score > 0 && (
-                  <Crown className="w-3 h-3 text-primary shrink-0" />
+                  <Crown className="w-2.5 h-2.5 text-primary shrink-0" />
                 )}
-                <span className="font-medium truncate">{player.name}</span>
+                <span className="font-medium truncate" title={player.name}>{getDisplayName(player.name)}</span>
                 {player.isDealer && (
-                  <span className="text-[10px] text-primary shrink-0">D</span>
+                  <span className="text-[8px] text-primary shrink-0">D</span>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1 shrink-0">
                 {player.call !== null && (
-                  <span className="text-muted-foreground text-[10px]">
+                  <span className="text-muted-foreground text-[9px]">
                     {player.tricksWon}/{player.call}
                   </span>
                 )}
@@ -101,7 +107,7 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
   players.forEach(p => {
     cumulativeScores[p.id] = [];
   });
-  
+
   roundHistory.forEach((round, idx) => {
     round.playerResults.forEach(result => {
       const prevScore = idx > 0 ? (cumulativeScores[result.playerId][idx - 1] || 0) : 0;
@@ -109,19 +115,26 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
     });
   });
 
+  // Get short display name - second word for Olympics, otherwise truncated first
+  const getShortName = (name: string) => {
+    const parts = name.split(' ');
+    if (parts.length > 1) return parts[1].slice(0, 4);
+    return name.slice(0, 4);
+  };
+
   return (
-    <div className="border-t pt-2">
-      <h4 className="font-medium text-[10px] text-muted-foreground mb-1">
+    <div className="border-t pt-1">
+      <h4 className="font-medium text-[9px] text-muted-foreground mb-0.5">
         History
       </h4>
-      <ScrollArea className="h-32">
-        <table className="w-full text-[10px]">
+      <ScrollArea className="h-40">
+        <table className="w-full text-[8px]">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-1 pr-1 w-8"></th>
+              <th className="text-left py-0.5 pr-0.5 w-6"></th>
               {players.map(p => (
-                <th key={p.id} colSpan={2} className="text-center py-1 px-0.5 font-medium truncate max-w-[40px]">
-                  {p.name.slice(0, 6)}
+                <th key={p.id} className="text-center py-0.5 px-0 font-medium w-[26px]" title={p.name}>
+                  {getShortName(p.name)}
                 </th>
               ))}
             </tr>
@@ -131,29 +144,28 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
               const config = roundConfigs[round.roundNumber - 1];
               return (
                 <tr key={round.roundNumber} className="border-b border-muted/50">
-                  <td className="py-0.5 pr-1">
-                    <div className="flex items-center gap-0.5">
-                      <span className="font-medium w-3 text-right">{config.cardCount}</span>
-                      <TrumpIcon suit={config.trump} className="text-sm" />
+                  <td className="py-0 pr-0.5">
+                    <div className="flex items-center gap-0">
+                      <span className="font-medium w-2 text-right text-[8px]">{config.cardCount}</span>
+                      <TrumpIcon suit={config.trump} className="text-[10px]" />
                     </div>
                   </td>
                   {players.map(player => {
                     const result = round.playerResults.find(r => r.playerId === player.id);
                     if (!result) {
                       return (
-                        <td key={player.id} colSpan={2} className="text-center py-0.5">-</td>
+                        <td key={player.id} className="text-center py-0">-</td>
                       );
                     }
                     const hit = result.tricksWon === result.call;
                     const missed = result.tricksWon !== result.call;
                     const cumulativeScore = cumulativeScores[player.id][roundIdx];
-                    
+
                     return (
-                      <td 
-                        key={player.id} 
-                        colSpan={2}
+                      <td
+                        key={player.id}
                         className={cn(
-                          "py-0.5 text-center",
+                          "py-0 text-center",
                           hit && "bg-green-500/20",
                           missed && "bg-red-500/20"
                         )}
@@ -163,7 +175,7 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
                           hit && "text-green-600 dark:text-green-400 font-medium",
                           missed && "text-red-600 dark:text-red-400"
                         )}>
-                          {result.call}|{cumulativeScore}
+                          {result.call}/{cumulativeScore}
                         </span>
                       </td>
                     );

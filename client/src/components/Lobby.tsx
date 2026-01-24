@@ -9,10 +9,35 @@ import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag } from "luc
 import { useToast } from "@/hooks/use-toast";
 import { Player } from "@shared/schema";
 
+// Inline a few countries and adjectives for the selector
+const COUNTRIES_SELECT = [
+  { name: "United Kingdom", code: "GB" },
+  { name: "United States", code: "US" },
+  { name: "France", code: "FR" },
+  { name: "Germany", code: "DE" },
+  { name: "Spain", code: "ES" },
+  { name: "Italy", code: "IT" },
+  { name: "Brazil", code: "BR" },
+  { name: "Japan", code: "JP" },
+  { name: "Australia", code: "AU" },
+  { name: "Canada", code: "CA" },
+  { name: "Argentina", code: "AR" },
+  { name: "Mexico", code: "MX" },
+  { name: "India", code: "IN" },
+  { name: "China", code: "CN" },
+  { name: "South Korea", code: "KR" },
+];
+
+const ADJECTIVES_SELECT = [
+  "Bold", "Brave", "Calm", "Clever", "Fierce",
+  "Swift", "Mighty", "Noble", "Wise", "Lucky",
+  "Epic", "Grand", "Royal", "Sharp", "Steady",
+];
+
 interface LobbyCreateProps {
   onCreateGame: (playerName: string) => void;
   onCreateSinglePlayerGame: (playerName: string, cpuCount: number) => void;
-  onCreateOlympicsGame: (playerName: string) => void;
+  onCreateOlympicsGame: (playerName: string, countryCode?: string, adjective?: string) => void;
   onJoinGame: (gameId: string, playerName: string) => void;
   isConnecting: boolean;
 }
@@ -22,6 +47,8 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
   const [gameId, setGameId] = useState("");
   const [mode, setMode] = useState<"single" | "olympics" | "multi" | "join" | null>(null);
   const [cpuCount, setCpuCount] = useState("3");
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedAdjective, setSelectedAdjective] = useState("");
 
   const handleCreateMultiplayer = () => {
     if (playerName.trim()) {
@@ -37,7 +64,11 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
 
   const handleCreateOlympics = () => {
     if (playerName.trim()) {
-      onCreateOlympicsGame(playerName.trim());
+      onCreateOlympicsGame(
+        playerName.trim(),
+        selectedCountry && selectedCountry !== "random" ? selectedCountry : undefined,
+        selectedAdjective && selectedAdjective !== "random" ? selectedAdjective : undefined
+      );
     }
   };
 
@@ -122,23 +153,53 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
               </Button>
             </div>
           ) : mode === "olympics" ? (
-            <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <Trophy className="w-5 h-5 text-yellow-500" />
-                  <span className="font-medium">The Whist Olympics</span>
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <span className="font-medium text-sm">The Whist Olympics</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Compete against 48 countries in a grand tournament! 
+                <p className="text-xs text-muted-foreground">
+                  49 countries, 7 tables, winners advance to finals!
                 </p>
-                <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>7 groups of 7 players each</li>
-                  <li>Group winners advance to finals</li>
-                  <li>Win the finals to become World Champion!</li>
-                </ul>
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Country</label>
+                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Random" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-48">
+                      <SelectItem value="random">Random</SelectItem>
+                      {COUNTRIES_SELECT.map(c => (
+                        <SelectItem key={c.code} value={c.code}>
+                          <span className="font-mono mr-1">{c.code}</span> {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Style</label>
+                  <Select value={selectedAdjective} onValueChange={setSelectedAdjective}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Random" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-48">
+                      <SelectItem value="random">Random</SelectItem>
+                      {ADJECTIVES_SELECT.map(adj => (
+                        <SelectItem key={adj} value={adj}>{adj}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <Button
                 className="w-full"
+                size="sm"
                 onClick={handleCreateOlympics}
                 disabled={!playerName.trim() || isConnecting}
                 data-testid="button-start-olympics"
@@ -146,7 +207,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                 {isConnecting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Starting Tournament...
+                    Starting...
                   </>
                 ) : (
                   "Enter The Whist Olympics"
@@ -154,6 +215,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
               </Button>
               <Button
                 variant="ghost"
+                size="sm"
                 className="w-full"
                 onClick={() => setMode(null)}
               >
@@ -296,6 +358,16 @@ interface LobbyWaitingProps {
   maxPlayers?: number;
 }
 
+// Helper to convert country code to flag emoji
+const countryCodeToFlag = (code: string) => {
+  if (!code || code.length !== 2) return '';
+  const codePoints = code
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+};
+
 export function LobbyWaiting({
   gameId,
   players,
@@ -406,21 +478,17 @@ export function LobbyWaiting({
                   <div
                     key={player.id}
                     data-testid={`lobby-player-${player.name}`}
-                    className={`flex items-center justify-between p-3 rounded-md ${
+                    className={`flex items-center justify-between p-2 rounded-md ${
                       !player.isCPU ? 'bg-primary/10 border border-primary/20' : 'bg-muted/30'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-xs font-mono font-bold">
-                        {player.countryCode || "??"}
-                      </div>
+                      <span className="text-xl">{countryCodeToFlag(player.countryCode || '')}</span>
                       <div className="flex flex-col">
-                        <span className={`font-medium ${!player.isCPU ? '' : 'text-muted-foreground'}`}>
-                          {player.name}
+                        <span className={`text-sm font-medium ${!player.isCPU ? '' : 'text-muted-foreground'}`}>
+                          {player.name.split(' ')[1] || player.name}
                         </span>
-                        {player.countryName && (
-                          <span className="text-xs text-muted-foreground">{player.countryName}</span>
-                        )}
+                        <span className="text-[10px] text-muted-foreground">{player.countryName}</span>
                       </div>
                     </div>
                     {!player.isCPU && (

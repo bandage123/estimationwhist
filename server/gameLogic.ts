@@ -58,6 +58,7 @@ export class Game {
   state: GameState;
   private onStateUpdate: StateUpdateCallback | null = null;
   private cpuProcessingTimeout: NodeJS.Timeout | null = null; // Track CPU processing timeout
+  private speedMultiplier: number = 1; // 0.25 = very fast, 0.5 = fast, 1 = normal, 2 = slow
 
   constructor(hostName: string, hostId: string, isSinglePlayer: boolean = false, cpuCount: number = 0) {
     this.state = {
@@ -87,6 +88,14 @@ export class Game {
 
   setOnStateUpdate(callback: StateUpdateCallback): void {
     this.onStateUpdate = callback;
+  }
+
+  setSpeed(speed: number): void {
+    this.speedMultiplier = speed;
+  }
+
+  getSpeed(): number {
+    return this.speedMultiplier;
   }
 
   private notifyStateUpdate(): void {
@@ -171,12 +180,12 @@ export class Game {
         this.startRound(1);
         this.notifyStateUpdate();
         this.processCPUTurns();
-      }, 3000);
+      }, 3000 * this.speedMultiplier);
     } else {
       // Tie - deal again after delay
       setTimeout(() => {
         this.determineDealerRound();
-      }, 2000);
+      }, 2000 * this.speedMultiplier);
     }
   }
 
@@ -303,17 +312,26 @@ export class Game {
     if (player.isDealer) {
       const totalCalled = this.state.players.reduce((sum, p) => sum + (p.call ?? 0), 0);
       const forbidden = this.state.cardCount - totalCalled;
-      if (call === forbidden) {
-        // Adjust call to avoid forbidden number - prefer going lower unless at 0
-        if (expectedWins > forbidden) {
-          call = forbidden + 1;
-        } else {
-          call = forbidden - 1;
+      if (call === forbidden && forbidden >= 0 && forbidden <= this.state.cardCount) {
+        // Adjust call to avoid forbidden number
+        // Try both directions and pick the valid one closest to expected wins
+        const higher = forbidden + 1;
+        const lower = forbidden - 1;
+        const validHigher = higher <= this.state.cardCount;
+        const validLower = lower >= 0;
+
+        if (validHigher && validLower) {
+          // Both directions valid, pick based on expected wins
+          call = expectedWins >= forbidden ? higher : lower;
+        } else if (validHigher) {
+          call = higher;
+        } else if (validLower) {
+          call = lower;
         }
-        call = Math.max(0, Math.min(call, this.state.cardCount));
+        // If neither is valid (shouldn't happen with valid game state), call stays as is
       }
     }
-    
+
     return call;
   }
 
@@ -436,9 +454,25 @@ export class Game {
 
       if (this.state.phase === "calling") {
         const call = this.generateCPUCall(actualCurrentPlayer);
-        this.makeCall(actualCurrentPlayer.id, call);
-        this.notifyStateUpdate();
-        this.processCPUTurns();
+        let success = this.makeCall(actualCurrentPlayer.id, call);
+        if (!success) {
+          // This shouldn't happen with the fixed generateCPUCall, but handle gracefully
+          console.error(`CPU ${actualCurrentPlayer.name} failed to make call ${call}, trying alternatives`);
+          // Try all valid calls until one works
+          for (let altCall = 0; altCall <= this.state.cardCount; altCall++) {
+            if (this.makeCall(actualCurrentPlayer.id, altCall)) {
+              success = true;
+              break;
+            }
+          }
+        }
+        // Only continue if a call was successfully made
+        if (success) {
+          // Note: makeCall already calls notifyStateUpdate internally
+          this.processCPUTurns();
+        } else {
+          console.error(`CPU ${actualCurrentPlayer.name} could not make any valid call - game state may be invalid`);
+        }
       } else if (this.state.phase === "playing") {
         // Double-check player has cards to play
         if (actualCurrentPlayer.hand.length === 0) {
@@ -446,19 +480,22 @@ export class Game {
         }
         const card = this.generateCPUCardPlay(actualCurrentPlayer);
         const trickWasComplete = this.state.currentTrick.cards.length === this.state.players.length - 1;
-        this.playCard(actualCurrentPlayer.id, card);
-        this.notifyStateUpdate();
-        
+        const success = this.playCard(actualCurrentPlayer.id, card);
+        if (!success) {
+          console.error(`CPU ${actualCurrentPlayer.name} failed to play card`, card);
+          return; // Don't continue if card play failed
+        }
+
         // Only continue processing if trick didn't just complete
         // (trick completion has its own timeout that calls processCPUTurns)
         if (!trickWasComplete && this.state.phase === "playing") {
           this.cpuProcessingTimeout = setTimeout(() => {
             this.cpuProcessingTimeout = null;
             this.processCPUTurns();
-          }, 500);
+          }, 500 * this.speedMultiplier);
         }
       }
-    }, 1000 + Math.random() * 500); // 1-1.5 second delay
+    }, (1000 + Math.random() * 500) * this.speedMultiplier); // 1-1.5 second delay, scaled by speed
   }
 
   makeCall(playerId: string, call: number): boolean {
@@ -561,14 +598,14 @@ export class Game {
         setTimeout(() => {
           this.endRound();
           this.notifyStateUpdate();
-        }, 2000);
+        }, 2000 * this.speedMultiplier);
       } else {
         // Next trick
         setTimeout(() => {
           this.startNextTrick(winnerId);
           this.notifyStateUpdate();
           this.processCPUTurns();
-        }, 2000);
+        }, 2000 * this.speedMultiplier);
       }
     } else {
       // Next player
@@ -1125,22 +1162,30 @@ class GameManager {
     return game;
   }
 
-  createOlympicsGame(hostName: string, hostId: string): Game {
+  createOlympicsGame(hostName: string, hostId: string, preferredCountryCode?: string, preferredAdjective?: string): Game {
     const game = new Game(hostName, hostId, true, 0);
-    
+
     // Generate all 49 Olympics players
-    const olympicsPlayers = generateOlympicsPlayers();
-    
-    // Pick one country for the human player (first one) and replace it
-    const humanCountry = olympicsPlayers[0];
-    
+    let olympicsPlayers = generateOlympicsPlayers();
+
+    // If user selected a country, find it and swap to position 0
+    if (preferredCountryCode) {
+      const selectedIdx = olympicsPlayers.findIndex(p => p.countryCode === preferredCountryCode);
+      if (selectedIdx > 0) {
+        [olympicsPlayers[0], olympicsPlayers[selectedIdx]] = [olympicsPlayers[selectedIdx], olympicsPlayers[0]];
+      }
+    }
+
+    // If user selected an adjective, use it for the human player
+    const humanAdjective = preferredAdjective || olympicsPlayers[0].name.split(' ')[0];
+
     // Create all 49 player objects
     const allPlayers: Player[] = olympicsPlayers.map((op, index) => {
       if (index === 0) {
         // Human player
         return {
           id: hostId,
-          name: `${op.name.split(' ')[0]} ${hostName}`, // "Adjective PlayerName"
+          name: `${humanAdjective} ${hostName}`, // "Adjective PlayerName"
           hand: [],
           call: null,
           tricksWon: 0,

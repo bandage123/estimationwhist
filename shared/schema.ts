@@ -118,11 +118,14 @@ export interface RoundResult {
   }[];
 }
 
+// Speed settings for CPU animations (multiplier: 0.5 = fast, 1 = normal, 2 = slow)
+export type SpeedSetting = 0.25 | 0.5 | 1 | 2;
+
 // WebSocket message types
 export type ClientMessage =
   | { type: "create_game"; playerName: string }
   | { type: "create_single_player_game"; playerName: string; cpuCount: number }
-  | { type: "create_olympics_game"; playerName: string }
+  | { type: "create_olympics_game"; playerName: string; countryCode?: string; adjective?: string }
   | { type: "join_game"; gameId: string; playerName: string }
   | { type: "start_game" }
   | { type: "make_call"; call: number }
@@ -132,6 +135,7 @@ export type ClientMessage =
   | { type: "start_olympics_qualifying" }
   | { type: "view_olympics_results" }
   | { type: "start_olympics_finals" }
+  | { type: "set_speed"; speed: SpeedSetting }
   | { type: "request_state" };
 
 export type ServerMessage =
