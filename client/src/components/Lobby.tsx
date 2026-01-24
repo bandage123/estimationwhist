@@ -139,7 +139,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                   <Trophy className="w-5 h-5 text-yellow-500" />
                   <Flag className="w-4 h-4" />
                 </div>
-                <span className="font-semibold">The Whist Olympics</span>
+                <span className="font-semibold">The Whist World Cup</span>
                 <span className="text-xs opacity-70">49 countries compete in a tournament</span>
               </Button>
               <Button
@@ -157,7 +157,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
               <div className="p-3 rounded-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <Trophy className="w-4 h-4 text-yellow-500" />
-                  <span className="font-medium text-sm">The Whist Olympics</span>
+                  <span className="font-medium text-sm">The Whist World Cup</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   49 countries, 7 tables, winners advance to finals!
@@ -210,7 +210,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                     Starting...
                   </>
                 ) : (
-                  "Enter The Whist Olympics"
+                  "Enter The Whist World Cup"
                 )}
               </Button>
               <Button
@@ -404,7 +404,7 @@ export function LobbyWaiting({
             {isOlympics ? (
               <Badge variant="secondary" className="bg-yellow-500/10 border-yellow-500/30">
                 <Trophy className="w-3 h-3 mr-1 text-yellow-500" />
-                Olympics - Group {olympicsGroupNumber}
+                World Cup - Group {olympicsGroupNumber}
               </Badge>
             ) : isSinglePlayer ? (
               <Badge variant="secondary">
@@ -419,7 +419,7 @@ export function LobbyWaiting({
             )}
           </div>
           <CardTitle className="text-xl">
-            {isOlympics ? "The Whist Olympics" : isSinglePlayer ? "Ready to Play" : "Waiting for Players"}
+            {isOlympics ? "The Whist World Cup" : isSinglePlayer ? "Ready to Play" : "Waiting for Players"}
           </CardTitle>
           <CardDescription>
             {isOlympics

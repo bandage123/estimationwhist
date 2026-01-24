@@ -407,7 +407,7 @@ export default function Game() {
                 </div>
               </div>
               <div className="space-y-2">
-                <h1 className="text-4xl font-bold">The Whist Olympics Champion!</h1>
+                <h1 className="text-4xl font-bold">The Whist World Cup Champion!</h1>
                 <div className="flex items-center justify-center gap-3 text-2xl">
                   <span className="font-mono text-muted-foreground">{champion?.countryCode || "??"}</span>
                   <span className="font-semibold">{champion?.name || "Unknown"}</span>
