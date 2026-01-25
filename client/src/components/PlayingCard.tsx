@@ -8,6 +8,7 @@ interface PlayingCardProps {
   selected?: boolean;
   size?: "sm" | "md" | "lg";
   faceDown?: boolean;
+  hidden?: boolean; // For blind mode - shows question mark
 }
 
 const suitSymbols: Record<Suit, string> = {
@@ -37,6 +38,7 @@ export function PlayingCard({
   selected = false,
   size = "md",
   faceDown = false,
+  hidden = false,
 }: PlayingCardProps) {
   if (faceDown) {
     return (
@@ -51,6 +53,31 @@ export function PlayingCard({
           <div className="text-blue-400 text-2xl font-serif opacity-50">
             W
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Hidden card for blind mode - white card with question mark
+  if (hidden) {
+    return (
+      <div
+        className={cn(
+          "playing-card flex flex-col justify-between p-1.5 cursor-default select-none",
+          sizeClasses[size],
+          "bg-white border border-gray-200"
+        )}
+      >
+        <div className="flex items-start gap-0.5 text-purple-500">
+          <span className="font-bold leading-none">?</span>
+        </div>
+
+        <div className="flex items-center justify-center text-4xl text-purple-500">
+          ?
+        </div>
+
+        <div className="flex items-end justify-end gap-0.5 rotate-180 text-purple-500">
+          <span className="font-bold leading-none">?</span>
         </div>
       </div>
     );

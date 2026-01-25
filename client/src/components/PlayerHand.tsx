@@ -12,6 +12,7 @@ interface PlayerHandProps {
   leadSuit?: Suit | null;
   swapMode?: boolean;
   onSwapCard?: (card: Card) => void;
+  isBlindMode?: boolean; // Show cards as hidden with question marks
 }
 
 export function PlayerHand({
@@ -23,6 +24,7 @@ export function PlayerHand({
   isCurrentPlayer,
   swapMode,
   onSwapCard,
+  isBlindMode,
 }: PlayerHandProps) {
   const sortedCards = [...cards].sort((a, b) => {
     const suitOrder: Record<Suit, number> = { spades: 0, hearts: 1, diamonds: 2, clubs: 3 };
@@ -92,6 +94,7 @@ export function PlayerHand({
                 disabled={isDisabled}
                 selected={isSelected}
                 size="sm"
+                hidden={isBlindMode}
               />
             </div>
           );
@@ -124,6 +127,7 @@ export function PlayerHand({
                 disabled={isDisabled}
                 selected={isSelected}
                 size="md"
+                hidden={isBlindMode}
               />
             </div>
           );

@@ -868,6 +868,7 @@ export default function Game() {
                         playableCards={[]}
                         swapMode={swapMode}
                         onSwapCard={handleSwapCard}
+                        isBlindMode={currentPlayer.isBlindCalling}
                       />
                     </div>
                   </div>
@@ -903,6 +904,7 @@ export default function Game() {
                           playableCards={[]}
                           swapMode={swapMode}
                           onSwapCard={handleSwapCard}
+                          isBlindMode={currentPlayer.isBlindCalling}
                         />
                       </div>
                     </div>
