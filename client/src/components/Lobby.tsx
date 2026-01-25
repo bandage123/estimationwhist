@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Sparkles } from "lucide-react";
+import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Player, GameFormat } from "@shared/schema";
 
@@ -184,12 +184,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="traditional">Traditional</SelectItem>
-                    <SelectItem value="keller">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-3 h-3 text-purple-500" />
-                        Keller Rules
-                      </div>
-                    </SelectItem>
+                    <SelectItem value="keller">Keller Rules</SelectItem>
                   </SelectContent>
                 </Select>
                 {gameFormat === "keller" && (
@@ -256,12 +251,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="traditional">Traditional</SelectItem>
-                        <SelectItem value="keller">
-                          <div className="flex items-center gap-2">
-                            <Sparkles className="w-3 h-3 text-purple-500" />
-                            Keller Rules
-                          </div>
-                        </SelectItem>
+                        <SelectItem value="keller">Keller Rules</SelectItem>
                       </SelectContent>
                     </Select>
                     {gameFormat === "keller" && (
@@ -313,12 +303,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="traditional">Traditional</SelectItem>
-                      <SelectItem value="keller">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-3 h-3 text-purple-500" />
-                          Keller Rules
-                        </div>
-                      </SelectItem>
+                      <SelectItem value="keller">Keller Rules</SelectItem>
                     </SelectContent>
                   </Select>
                   {gameFormat === "keller" && (
