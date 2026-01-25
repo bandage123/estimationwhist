@@ -1124,12 +1124,17 @@ export class Game {
     const nextIdx = currentIdx + 1;
 
     if (nextIdx >= this.state.players.length) {
-      // All players finished
+      // All players finished - show results briefly then proceed to next round
       this.state.haloMinigame.isComplete = true;
       this.state.haloMinigame.currentPlayerId = null;
       this.state.haloMinigame.currentCard = null;
-      this.state.phase = "round_end";
       this.notifyStateUpdate();
+
+      // After a delay, proceed to the next round
+      setTimeout(() => {
+        this.state.haloMinigame = undefined;
+        this.proceedToNextRound();
+      }, 2000 * this.speedMultiplier);
     } else {
       // Next player
       this.state.haloMinigame.currentPlayerId = this.state.players[nextIdx].id;
@@ -1275,12 +1280,17 @@ export class Game {
     const nextIdx = currentIdx + 1;
 
     if (nextIdx >= this.state.players.length) {
-      // All players finished
+      // All players finished - show results briefly then proceed to next round
       this.state.brucieBonus.isComplete = true;
       this.state.brucieBonus.currentPlayerId = null;
       this.state.brucieBonus.currentCard = null;
-      this.state.phase = "round_end";
       this.notifyStateUpdate();
+
+      // After a delay, proceed to the next round
+      setTimeout(() => {
+        this.state.brucieBonus = undefined;
+        this.proceedToNextRound();
+      }, 2000 * this.speedMultiplier);
     } else {
       // Next player
       this.state.brucieBonus.currentPlayerId = this.state.players[nextIdx].id;
