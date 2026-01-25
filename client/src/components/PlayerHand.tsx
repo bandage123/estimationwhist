@@ -74,6 +74,8 @@ export function PlayerHand({
         {sortedCards.map((card, index) => {
           const isSelected = selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
           const isPlayable = isCardPlayable(card);
+          // In swap mode, all cards should be clickable
+          const isDisabled = swapMode ? false : (!isCurrentPlayer || !isPlayable);
 
           return (
             <div
@@ -87,7 +89,7 @@ export function PlayerHand({
               <PlayingCard
                 card={card}
                 onClick={() => handleCardClick(card)}
-                disabled={!isCurrentPlayer || !isPlayable}
+                disabled={isDisabled}
                 selected={isSelected}
                 size="sm"
               />
@@ -104,6 +106,8 @@ export function PlayerHand({
         {sortedCards.map((card, index) => {
           const isSelected = selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
           const isPlayable = isCardPlayable(card);
+          // In swap mode, all cards should be clickable
+          const isDisabled = swapMode ? false : (!isCurrentPlayer || !isPlayable);
 
           return (
             <div
@@ -117,7 +121,7 @@ export function PlayerHand({
               <PlayingCard
                 card={card}
                 onClick={() => handleCardClick(card)}
-                disabled={!isCurrentPlayer || !isPlayable}
+                disabled={isDisabled}
                 selected={isSelected}
                 size="md"
               />
