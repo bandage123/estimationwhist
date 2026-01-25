@@ -5,6 +5,7 @@ import { DealerDetermination } from "@/components/DealerDetermination";
 import { CallDialog } from "@/components/CallDialog";
 import { TrickArea } from "@/components/TrickArea";
 import { PlayerHand } from "@/components/PlayerHand";
+import { PlayingCard } from "@/components/PlayingCard";
 import { ScoreBoard, FinalScoreBoard } from "@/components/ScoreBoard";
 import { RoundEndDisplay } from "@/components/RoundEndDisplay";
 import { KellerStatusBar } from "@/components/KellerStatusBar";
@@ -14,7 +15,7 @@ import { Card, Suit, Player, SpeedSetting } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff } from "lucide-react";
+import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check } from "lucide-react";
 
 export default function Game() {
   const {
@@ -52,6 +53,9 @@ export default function Game() {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [currentSpeed, setCurrentSpeed] = useState<SpeedSetting>(1);
   const [swapMode, setSwapMode] = useState(false);
+  const [cardToSwap, setCardToSwap] = useState<Card | null>(null); // Card selected for swap, awaiting confirmation
+  const [handBeforeSwap, setHandBeforeSwap] = useState<Card[] | null>(null); // Track hand to detect new card
+  const [newSwappedCard, setNewSwappedCard] = useState<Card | null>(null); // The card received from swap
 
   const handleSpeedChange = (speed: SpeedSetting) => {
     setCurrentSpeed(speed);
@@ -101,13 +105,50 @@ export default function Game() {
     );
   }, [gameState, kellerState]);
 
-  // Handle swap card selection
+  // Handle swap card selection - just selects the card for confirmation
   const handleSwapCard = (card: Card) => {
     if (swapMode && card) {
-      useSwap(card);
+      setCardToSwap(card);
+    }
+  };
+
+  // Confirm the swap
+  const confirmSwap = () => {
+    if (cardToSwap && currentPlayer) {
+      // Store the current hand to detect the new card later
+      setHandBeforeSwap([...currentPlayer.hand]);
+      useSwap(cardToSwap);
+      setCardToSwap(null);
       setSwapMode(false);
     }
   };
+
+  // Cancel the swap selection
+  const cancelSwap = () => {
+    setCardToSwap(null);
+  };
+
+  // Dismiss the swap result display
+  const dismissSwapResult = () => {
+    setNewSwappedCard(null);
+    setHandBeforeSwap(null);
+  };
+
+  // Detect the new card after swap completes
+  useEffect(() => {
+    if (handBeforeSwap && currentPlayer && kellerState?.swapUsed) {
+      // Find the card that's in the current hand but wasn't in the hand before swap
+      const newCard = currentPlayer.hand.find(card =>
+        !handBeforeSwap.some(oldCard =>
+          oldCard.suit === card.suit && oldCard.rank === card.rank
+        )
+      );
+      if (newCard) {
+        setNewSwappedCard(newCard);
+        setHandBeforeSwap(null);
+      }
+    }
+  }, [currentPlayer?.hand, handBeforeSwap, kellerState?.swapUsed]);
 
   // Calculate playable cards based on lead suit and trump
   const playableCards = useMemo(() => {
@@ -714,8 +755,58 @@ export default function Game() {
                 isCallingPhase={gameState.phase === "calling"}
                 onStartBlindRounds={startBlindRounds}
                 onUseSwap={() => setSwapMode(true)}
-                swapMode={swapMode}
+                swapMode={swapMode && !cardToSwap}
               />
+            </div>
+          )}
+
+          {/* Swap Confirmation Dialog */}
+          {cardToSwap && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-card border rounded-lg p-6 max-w-sm mx-4 space-y-4">
+                <div className="text-center">
+                  <Shuffle className="w-8 h-8 mx-auto mb-2 text-blue-500" />
+                  <h2 className="text-lg font-bold">Confirm Swap</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Swap this card for a random card from the deck?
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <PlayingCard card={cardToSwap} size="lg" />
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={confirmSwap} className="gap-2">
+                    <Check className="w-4 h-4" />
+                    Confirm Swap
+                  </Button>
+                  <Button variant="outline" onClick={cancelSwap}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Swap Result Dialog */}
+          {newSwappedCard && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-card border rounded-lg p-6 max-w-sm mx-4 space-y-4">
+                <div className="text-center">
+                  <Check className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                  <h2 className="text-lg font-bold">Card Swapped!</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You received this card:
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <PlayingCard card={newSwappedCard} size="lg" />
+                </div>
+                <div className="flex justify-center">
+                  <Button onClick={dismissSwapResult}>
+                    Continue
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
