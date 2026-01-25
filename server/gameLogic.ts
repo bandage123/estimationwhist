@@ -1086,6 +1086,10 @@ export class Game {
       }
 
       this.notifyStateUpdate();
+
+      // Continue CPU processing if it's a CPU's turn
+      this.processHaloCPU();
+
       return true;
     } else {
       // Wrong guess - score is 0, move to next player
@@ -1221,6 +1225,10 @@ export class Game {
       }
 
       this.notifyStateUpdate();
+
+      // Continue CPU processing if it's a CPU's turn
+      this.processBrucieCPU();
+
       return true;
     } else {
       // Wrong guess - multiplier is 1x
