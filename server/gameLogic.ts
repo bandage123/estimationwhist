@@ -112,6 +112,7 @@ export class Game {
       isInBlindMode: false,
       blindModeStartedRound: null,
       blindModeStartsNextRound: false,
+      madeRoundOneBlindChoice: false,
       swapUsed: false,
       haloScore: null,
       brucieMultiplier: 2, // Default multiplier
@@ -257,6 +258,52 @@ export class Game {
 
     // Set flag to activate blind mode from next round
     kellerState.blindModeStartsNextRound = true;
+
+    this.notifyStateUpdate();
+    return true;
+  }
+
+  // Start blind rounds immediately from round 1 (Keller format)
+  // This is called when player chooses to go blind at the start of round 1
+  startBlindRoundsNow(playerId: string): boolean {
+    if (this.state.gameFormat !== "keller" || !this.state.kellerPlayerStates) return false;
+    if (this.state.currentRound !== 1) return false; // Only valid for round 1
+    if (this.state.phase !== "calling") return false;
+
+    const kellerState = this.state.kellerPlayerStates[playerId];
+    if (!kellerState) return false;
+
+    // Can only use if haven't made the choice yet
+    if (kellerState.madeRoundOneBlindChoice) return false;
+
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    // Activate blind mode immediately
+    kellerState.isInBlindMode = true;
+    kellerState.blindModeStartedRound = 1;
+    kellerState.madeRoundOneBlindChoice = true;
+    player.isBlindCalling = true;
+
+    this.notifyStateUpdate();
+    return true;
+  }
+
+  // Decline going blind from round 1 (Keller format)
+  // Player will see their cards normally
+  declineBlindRoundOne(playerId: string): boolean {
+    if (this.state.gameFormat !== "keller" || !this.state.kellerPlayerStates) return false;
+    if (this.state.currentRound !== 1) return false; // Only valid for round 1
+    if (this.state.phase !== "calling") return false;
+
+    const kellerState = this.state.kellerPlayerStates[playerId];
+    if (!kellerState) return false;
+
+    // Can only use if haven't made the choice yet
+    if (kellerState.madeRoundOneBlindChoice) return false;
+
+    // Just mark that they made the choice (declined)
+    kellerState.madeRoundOneBlindChoice = true;
 
     this.notifyStateUpdate();
     return true;
@@ -624,6 +671,25 @@ export class Game {
       }
 
       if (this.state.phase === "calling") {
+        // Keller format: CPU needs to make round 1 blind choice first
+        if (this.state.gameFormat === "keller" && this.state.currentRound === 1 && this.state.kellerPlayerStates) {
+          const cpuKellerState = this.state.kellerPlayerStates[actualCurrentPlayer.id];
+          if (cpuKellerState && !cpuKellerState.madeRoundOneBlindChoice) {
+            // CPU randomly decides to go blind from round 1 (30% chance)
+            if (Math.random() < 0.3) {
+              this.startBlindRoundsNow(actualCurrentPlayer.id);
+            } else {
+              this.declineBlindRoundOne(actualCurrentPlayer.id);
+            }
+            // Continue processing after a short delay
+            this.cpuProcessingTimeout = setTimeout(() => {
+              this.cpuProcessingTimeout = null;
+              this.processCPUTurns();
+            }, 500 * this.speedMultiplier);
+            return;
+          }
+        }
+
         const call = this.generateCPUCall(actualCurrentPlayer);
         let success = this.makeCall(actualCurrentPlayer.id, call);
         if (!success) {
@@ -1656,8 +1722,16 @@ export class Game {
     // Keller format: Hide own cards during blind calling phase
     if (state.phase === "calling" && state.gameFormat === "keller") {
       const currentPlayer = state.players.find(p => p.id === playerId);
-      if (currentPlayer?.isBlindCalling) {
-        currentPlayer.hand = currentPlayer.hand.map(() => ({ suit: "clubs" as Suit, rank: "2" as Rank }));
+      const kellerState = state.kellerPlayerStates?.[playerId];
+
+      // Hide cards if blind calling OR if round 1 and haven't made blind choice yet
+      if (currentPlayer && kellerState) {
+        const shouldHideCards = currentPlayer.isBlindCalling ||
+          (state.currentRound === 1 && !kellerState.madeRoundOneBlindChoice);
+
+        if (shouldHideCards) {
+          currentPlayer.hand = currentPlayer.hand.map(() => ({ suit: "clubs" as Suit, rank: "2" as Rank }));
+        }
       }
     }
 
@@ -1778,6 +1852,7 @@ class GameManager {
           isInBlindMode: false,
           blindModeStartedRound: null,
           blindModeStartsNextRound: false,
+          madeRoundOneBlindChoice: false,
           swapUsed: false,
           haloScore: null,
           brucieMultiplier: 2,

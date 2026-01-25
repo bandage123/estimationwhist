@@ -14,7 +14,7 @@ import { Card, Suit, Player, SpeedSetting } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles } from "lucide-react";
+import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff } from "lucide-react";
 
 export default function Game() {
   const {
@@ -38,6 +38,8 @@ export default function Game() {
     setSpeed,
     // Keller format actions
     startBlindRounds,
+    startBlindRoundsNow,
+    declineBlindRoundOne,
     useSwap,
     haloGuess,
     haloBank,
@@ -87,6 +89,17 @@ export default function Game() {
     if (!gameState || !playerId || gameState.gameFormat !== "keller") return undefined;
     return gameState.kellerPlayerStates?.[playerId];
   }, [gameState, playerId]);
+
+  // Check if we need to show the round 1 blind choice prompt
+  const needsRoundOneBlindChoice = useMemo(() => {
+    if (!gameState || !kellerState) return false;
+    return (
+      gameState.gameFormat === "keller" &&
+      gameState.currentRound === 1 &&
+      gameState.phase === "calling" &&
+      !kellerState.madeRoundOneBlindChoice
+    );
+  }, [gameState, kellerState]);
 
   // Handle swap card selection
   const handleSwapCard = (card: Card) => {
@@ -709,7 +722,37 @@ export default function Game() {
           {/* Calling phase - show dialog or waiting message */}
           {gameState.phase === "calling" && (
             <>
-              {isMyTurn && currentPlayer ? (
+              {/* Round 1 Blind Choice Prompt (Keller format) */}
+              {needsRoundOneBlindChoice ? (
+                <div className="max-w-md mx-auto">
+                  <div className="bg-card border rounded-lg p-6 space-y-4">
+                    <div className="text-center">
+                      <h2 className="text-xl font-bold mb-2">Three Blind Mice</h2>
+                      <p className="text-muted-foreground text-sm">
+                        Would you like to go blind starting from Round 1?
+                      </p>
+                      <p className="text-muted-foreground text-xs mt-2">
+                        You must complete 3 blind rounds during the game. Going blind now means you won't see your cards before calling.
+                      </p>
+                    </div>
+                    <div className="flex gap-3 justify-center">
+                      <Button
+                        onClick={startBlindRoundsNow}
+                        className="gap-2 bg-purple-600 hover:bg-purple-700"
+                      >
+                        <EyeOff className="w-4 h-4" />
+                        Go Blind Now
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={declineBlindRoundOne}
+                      >
+                        See My Cards
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : isMyTurn && currentPlayer ? (
                 <div className="max-w-lg mx-auto space-y-6">
                   <CallDialog
                     cardCount={gameState.cardCount}

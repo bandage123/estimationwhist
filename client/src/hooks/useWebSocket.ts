@@ -22,6 +22,8 @@ interface UseWebSocketReturn {
   setSpeed: (speed: SpeedSetting) => void;
   // Keller format actions
   startBlindRounds: () => void;
+  startBlindRoundsNow: () => void;
+  declineBlindRoundOne: () => void;
   useSwap: (cardToSwap: Card) => void;
   haloGuess: (guess: "higher" | "lower" | "same") => void;
   haloBank: () => void;
@@ -186,6 +188,14 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "start_blind_rounds" });
   }, [sendMessage]);
 
+  const startBlindRoundsNow = useCallback(() => {
+    sendMessage({ type: "start_blind_rounds_now" });
+  }, [sendMessage]);
+
+  const declineBlindRoundOne = useCallback(() => {
+    sendMessage({ type: "decline_blind_round_one" });
+  }, [sendMessage]);
+
   const useSwap = useCallback((cardToSwap: Card) => {
     sendMessage({ type: "use_swap", cardToSwap });
   }, [sendMessage]);
@@ -231,6 +241,8 @@ export function useWebSocket(): UseWebSocketReturn {
     setSpeed,
     // Keller format actions
     startBlindRounds,
+    startBlindRoundsNow,
+    declineBlindRoundOne,
     useSwap,
     haloGuess,
     haloBank,

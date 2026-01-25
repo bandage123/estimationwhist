@@ -329,6 +329,38 @@ export function setupWebSocket(server: Server): void {
             break;
           }
 
+          case "start_blind_rounds_now": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.startBlindRoundsNow(client.playerId)) {
+              sendError(ws, "Cannot start blind rounds now");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "decline_blind_round_one": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.declineBlindRoundOne(client.playerId)) {
+              sendError(ws, "Cannot decline blind round one");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
           case "use_swap": {
             const game = gameManager.getGameForPlayer(client.playerId);
             if (!game) {

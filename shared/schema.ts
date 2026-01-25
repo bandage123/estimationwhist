@@ -79,6 +79,7 @@ export interface KellerPlayerState {
   isInBlindMode: boolean;             // Currently in blind calling mode
   blindModeStartedRound: number | null; // Which round blind mode started
   blindModeStartsNextRound: boolean;  // Player chose to go blind from next round
+  madeRoundOneBlindChoice: boolean;   // Has player made their round 1 blind choice?
   swapUsed: boolean;                  // One Swap One Time tracker
   haloScore: number | null;           // Score from Halo minigame (null if not played yet)
   brucieMultiplier: number;           // Default 2, modified by Brucie Bonus (1-3)
@@ -182,6 +183,8 @@ export type ClientMessage =
   | { type: "request_state" }
   // Keller format actions
   | { type: "start_blind_rounds" }
+  | { type: "start_blind_rounds_now" }  // For round 1 - go blind immediately
+  | { type: "decline_blind_round_one" } // Decline going blind from round 1
   | { type: "use_swap"; cardToSwap: Card }
   | { type: "halo_guess"; guess: "higher" | "lower" | "same" }
   | { type: "halo_bank" }
