@@ -180,6 +180,11 @@ export class Game {
   }
 
   private determineDealerRound(): void {
+    // Ensure we're in the right phase
+    if (this.state.phase !== "determining_dealer") {
+      return;
+    }
+
     const deck = shuffleDeck(createDeck());
     this.state.dealerCards = [];
 
@@ -190,8 +195,6 @@ export class Game {
         card: deck[i],
       });
     }
-
-    this.notifyStateUpdate();
 
     // Find highest card(s)
     let highestValue = 0;
@@ -214,16 +217,28 @@ export class Game {
         p.isDealer = i === this.state.dealerIndex;
       });
 
+      // Notify state update so clients see the final dealer cards
+      this.notifyStateUpdate();
+
       // Start the first round after a delay
       setTimeout(() => {
-        this.startRound(1);
-        this.notifyStateUpdate();
-        this.processCPUTurns();
+        // Re-check phase in case game was reset/cancelled
+        if (this.state.phase === "determining_dealer") {
+          this.startRound(1);
+          this.notifyStateUpdate();
+          this.processCPUTurns();
+        }
       }, 3000 * this.speedMultiplier);
     } else {
-      // Tie - deal again after delay
+      // Tie - notify state update so clients see the tied cards
+      this.notifyStateUpdate();
+
+      // Deal again after delay
       setTimeout(() => {
-        this.determineDealerRound();
+        // Re-check phase in case game was reset/cancelled
+        if (this.state.phase === "determining_dealer") {
+          this.determineDealerRound();
+        }
       }, 2000 * this.speedMultiplier);
     }
   }
@@ -767,6 +782,9 @@ export class Game {
       if (winner) {
         winner.tricksWon++;
       }
+
+      // IMPORTANT: Notify state update NOW so clients see the last card played
+      this.notifyStateUpdate();
 
       // Check if round is complete
       if (this.state.trickNumber >= this.state.cardCount) {
