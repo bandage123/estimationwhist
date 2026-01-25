@@ -41,7 +41,7 @@ export function TrickArea({
   const currentPlayer = players[currentPlayerIndex];
 
   return (
-    <div className="felt-table rounded-xl md:rounded-2xl p-3 md:p-6 flex flex-col items-center gap-2 md:gap-4 min-h-[180px] md:min-h-[300px]">
+    <div className="felt-table rounded-xl md:rounded-2xl p-2 md:p-6 flex flex-col items-center gap-1 md:gap-4 min-h-[140px] md:min-h-[300px]">
       <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3">
         <Badge variant="secondary" className="text-xs md:text-sm" data-testid="round-badge">
           R{roundNumber}/13
@@ -77,15 +77,20 @@ export function TrickArea({
 
       <div className="flex-1 flex items-center justify-center">
         {currentTrick.cards.length > 0 ? (
-          <div className="flex gap-1 md:gap-2 flex-wrap justify-center">
+          <div className="flex gap-0.5 md:gap-2 flex-wrap justify-center">
             {currentTrick.cards.map(({ playerId, card }, index) => {
               const player = players.find(p => p.id === playerId);
               return (
-                <div key={index} className="flex flex-col items-center gap-0.5 md:gap-1">
-                  <span className="text-[10px] md:text-xs text-foreground/80 font-medium truncate max-w-[50px] md:max-w-none">
+                <div key={index} className="flex flex-col items-center gap-0">
+                  <span className="text-[9px] md:text-xs text-foreground/80 font-medium truncate max-w-[40px] md:max-w-none">
                     {player?.name || "?"}
                   </span>
-                  <PlayingCard card={card} size="md" />
+                  <div className="md:hidden">
+                    <PlayingCard card={card} size="sm" />
+                  </div>
+                  <div className="hidden md:block">
+                    <PlayingCard card={card} size="md" />
+                  </div>
                 </div>
               );
             })}

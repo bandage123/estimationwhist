@@ -591,7 +591,7 @@ export default function Game() {
 
       {/* Main content with sidebar */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left sidebar - Scoreboard (collapsed on mobile, visible on desktop) */}
+        {/* Left sidebar - Scoreboard (desktop only) */}
         <div className="hidden md:block w-64 shrink-0 border-r overflow-y-auto p-1">
           <ScoreBoard
             players={gameState.players}
@@ -601,27 +601,8 @@ export default function Game() {
           />
         </div>
 
-        {/* Mobile compact scoreboard */}
-        <div className="md:hidden border-b p-2 shrink-0">
-          <div className="flex flex-wrap items-center gap-2 justify-center text-xs">
-            {gameState.players.map((p, i) => (
-              <div
-                key={p.id}
-                className={`px-2 py-1 rounded ${
-                  i === gameState.currentPlayerIndex ? 'bg-primary/20 font-medium' : 'bg-muted'
-                } ${p.id === playerId ? 'ring-1 ring-primary' : ''}`}
-              >
-                <span className="font-medium">{p.name}</span>
-                {p.countryCode && <span className="text-muted-foreground ml-1">({p.countryCode})</span>}
-                <span className="ml-1">{p.score}pts</span>
-                {p.call !== null && <span className="text-muted-foreground ml-1">({p.tricksWon}/{p.call})</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Main game area */}
-        <div className="flex-1 overflow-y-auto p-2 md:p-4">
+        <div className="flex-1 overflow-y-auto p-1 md:p-4">
           {/* Calling phase - show dialog or waiting message */}
           {gameState.phase === "calling" && (
             <>
@@ -736,6 +717,16 @@ export default function Game() {
               )}
             </div>
           )}
+
+          {/* Mobile scoreboard at bottom */}
+          <div className="md:hidden mt-2 border-t pt-2">
+            <ScoreBoard
+              players={gameState.players}
+              roundHistory={gameState.roundHistory}
+              currentRound={gameState.currentRound}
+              showFullHistory={true}
+            />
+          </div>
         </div>
       </div>
     </div>

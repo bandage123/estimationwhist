@@ -46,27 +46,61 @@ export function PlayerHand({
     }
   };
 
-  const cardWidth = 64; // w-16 = 64px
+  // Responsive card sizes: sm on mobile, md on desktop
+  const cardWidthSm = 48; // w-12 = 48px
+  const cardWidthMd = 64; // w-16 = 64px
   const overlapFactor = cards.length > 5 ? 0.5 : 0.3;
-  const totalWidth = cardWidth + (cards.length - 1) * cardWidth * (1 - overlapFactor);
+  const totalWidthSm = cardWidthSm + (cards.length - 1) * cardWidthSm * (1 - overlapFactor);
+  const totalWidthMd = cardWidthMd + (cards.length - 1) * cardWidthMd * (1 - overlapFactor);
 
   return (
-    <div className="flex flex-col items-center gap-2 md:gap-3">
-      <div 
-        className="relative flex justify-center"
-        style={{ width: `${totalWidth}px`, height: "88px" }}
+    <div className="flex flex-col items-center gap-1 md:gap-3">
+      {/* Mobile hand (sm cards) */}
+      <div
+        className="md:hidden relative flex justify-center"
+        style={{ width: `${totalWidthSm}px`, height: "64px" }}
         data-testid="player-hand"
       >
         {sortedCards.map((card, index) => {
           const isSelected = selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
           const isPlayable = isCardPlayable(card);
-          
+
           return (
             <div
               key={`${card.suit}-${card.rank}`}
               className="absolute transition-all duration-200"
               style={{
-                left: `${index * cardWidth * (1 - overlapFactor)}px`,
+                left: `${index * cardWidthSm * (1 - overlapFactor)}px`,
+                zIndex: isSelected ? 50 : index,
+              }}
+            >
+              <PlayingCard
+                card={card}
+                onClick={() => handleCardClick(card)}
+                disabled={!isCurrentPlayer || !isPlayable}
+                selected={isSelected}
+                size="sm"
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop hand (md cards) */}
+      <div
+        className="hidden md:block relative"
+        style={{ width: `${totalWidthMd}px`, height: "88px" }}
+      >
+        {sortedCards.map((card, index) => {
+          const isSelected = selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;
+          const isPlayable = isCardPlayable(card);
+
+          return (
+            <div
+              key={`${card.suit}-${card.rank}`}
+              className="absolute transition-all duration-200"
+              style={{
+                left: `${index * cardWidthMd * (1 - overlapFactor)}px`,
                 zIndex: isSelected ? 50 : index,
               }}
             >
@@ -81,9 +115,9 @@ export function PlayerHand({
           );
         })}
       </div>
-      
+
       {isCurrentPlayer && selectedCard && (
-        <p className="text-xs md:text-sm text-muted-foreground">
+        <p className="text-[10px] md:text-sm text-muted-foreground">
           Tap again to play
         </p>
       )}
