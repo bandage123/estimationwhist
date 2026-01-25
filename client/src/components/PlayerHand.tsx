@@ -68,7 +68,7 @@ export function PlayerHand({
       {/* Mobile hand (sm cards) */}
       <div
         className="md:hidden relative flex justify-center"
-        style={{ width: `${totalWidthSm}px`, height: "64px" }}
+        style={{ width: `${totalWidthSm}px`, height: "72px" }}
         data-testid="player-hand"
       >
         {sortedCards.map((card, index) => {
@@ -99,7 +99,7 @@ export function PlayerHand({
       {/* Desktop hand (md cards) */}
       <div
         className="hidden md:block relative"
-        style={{ width: `${totalWidthMd}px`, height: "88px" }}
+        style={{ width: `${totalWidthMd}px`, height: "96px" }}
       >
         {sortedCards.map((card, index) => {
           const isSelected = selectedCard?.suit === card.suit && selectedCard?.rank === card.rank;

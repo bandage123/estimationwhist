@@ -111,6 +111,7 @@ export class Game {
       blindRoundsRemaining: 3,
       isInBlindMode: false,
       blindModeStartedRound: null,
+      blindModeStartsNextRound: false,
       swapUsed: false,
       haloScore: null,
       brucieMultiplier: 2, // Default multiplier
@@ -228,24 +229,19 @@ export class Game {
   }
 
   // Start blind rounds for a player (Keller format)
+  // Start blind rounds from NEXT round (Keller format)
+  // Player can choose during calling phase, but it takes effect from next round
   startBlindRounds(playerId: string): boolean {
     if (this.state.gameFormat !== "keller" || !this.state.kellerPlayerStates) return false;
-    if (this.state.phase !== "calling") return false;
 
     const kellerState = this.state.kellerPlayerStates[playerId];
     if (!kellerState) return false;
 
-    // Can only start if not already in blind mode and haven't completed 3 blind rounds
-    if (kellerState.isInBlindMode || kellerState.blindRoundsCompleted >= 3) return false;
+    // Can only start if not already in blind mode, not already queued, and haven't completed 3 blind rounds
+    if (kellerState.isInBlindMode || kellerState.blindModeStartsNextRound || kellerState.blindRoundsCompleted >= 3) return false;
 
-    kellerState.isInBlindMode = true;
-    kellerState.blindModeStartedRound = this.state.currentRound;
-
-    // Set current player as blind calling
-    const player = this.state.players.find(p => p.id === playerId);
-    if (player) {
-      player.isBlindCalling = true;
-    }
+    // Set flag to activate blind mode from next round
+    kellerState.blindModeStartsNextRound = true;
 
     this.notifyStateUpdate();
     return true;
@@ -345,6 +341,15 @@ export class Game {
       for (const player of this.state.players) {
         const kellerState = this.state.kellerPlayerStates[player.id];
         if (kellerState) {
+          // Activate blind mode if player chose "Go Blind From Next Round" in previous round
+          if (kellerState.blindModeStartsNextRound && !kellerState.isInBlindMode) {
+            kellerState.isInBlindMode = true;
+            kellerState.blindModeStartsNextRound = false;
+            if (kellerState.blindModeStartedRound === null) {
+              kellerState.blindModeStartedRound = roundNumber;
+            }
+          }
+
           // Auto-trigger blind mode for rounds 11-13 if not yet completed 3 blind rounds
           if (roundNumber >= 11 && kellerState.blindRoundsCompleted < 3 && !kellerState.isInBlindMode) {
             const roundsLeft = 13 - roundNumber + 1;
@@ -1754,6 +1759,7 @@ class GameManager {
           blindRoundsRemaining: 3,
           isInBlindMode: false,
           blindModeStartedRound: null,
+          blindModeStartsNextRound: false,
           swapUsed: false,
           haloScore: null,
           brucieMultiplier: 2,

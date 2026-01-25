@@ -23,9 +23,8 @@ export function KellerStatusBar({
   if (!kellerState) return null;
 
   const canStartBlind =
-    isCallingPhase &&
-    isCurrentPlayer &&
     !kellerState.isInBlindMode &&
+    !kellerState.blindModeStartsNextRound &&
     kellerState.blindRoundsCompleted < 3;
 
   const canSwap =
@@ -47,6 +46,11 @@ export function KellerStatusBar({
             <EyeOff className="w-3 h-3" />
             Blind Mode ({kellerState.blindRoundsCompleted}/3)
           </Badge>
+        ) : kellerState.blindModeStartsNextRound ? (
+          <Badge variant="secondary" className="gap-1 bg-purple-500/20 text-purple-700 dark:text-purple-300 animate-pulse">
+            <EyeOff className="w-3 h-3" />
+            Blind From Next Round
+          </Badge>
         ) : (
           <Badge variant="outline" className="gap-1">
             <Eye className="w-3 h-3" />
@@ -60,7 +64,7 @@ export function KellerStatusBar({
             className="h-6 px-2 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-500/10"
             onClick={onStartBlindRounds}
           >
-            Go Blind
+            Go Blind From Next Round
           </Button>
         )}
       </div>

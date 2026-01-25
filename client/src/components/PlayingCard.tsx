@@ -25,9 +25,9 @@ const suitColors: Record<Suit, string> = {
 };
 
 const sizeClasses = {
-  sm: "w-12 h-16 text-xs",
-  md: "w-16 h-22 text-sm",
-  lg: "w-20 h-28 text-base",
+  sm: "w-12 h-[72px] text-xs",
+  md: "w-16 h-24 text-sm",
+  lg: "w-20 h-32 text-base",
 };
 
 export function PlayingCard({

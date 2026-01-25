@@ -78,6 +78,7 @@ export interface KellerPlayerState {
   blindRoundsRemaining: number;       // 3 minus completed
   isInBlindMode: boolean;             // Currently in blind calling mode
   blindModeStartedRound: number | null; // Which round blind mode started
+  blindModeStartsNextRound: boolean;  // Player chose to go blind from next round
   swapUsed: boolean;                  // One Swap One Time tracker
   haloScore: number | null;           // Score from Halo minigame (null if not played yet)
   brucieMultiplier: number;           // Default 2, modified by Brucie Bonus (1-3)
