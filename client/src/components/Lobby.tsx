@@ -97,44 +97,44 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
 
           {mode === null ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <Button
-                  variant="default"
+                  variant="outline"
                   onClick={() => setMode("single")}
                   disabled={!playerName.trim()}
-                  className="h-auto py-4 flex flex-col gap-2"
+                  className="w-full h-auto py-4 flex flex-col gap-2 border-2 hover:bg-primary/10 hover:border-primary"
                   data-testid="button-single-mode"
                 >
-                  <Bot className="w-5 h-5" />
-                  <span>Single Player</span>
+                  <Bot className="w-5 h-5 text-primary" />
+                  <span className="font-semibold">Single Player</span>
                   <span className="text-xs opacity-70">Play vs CPU</span>
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setMode("multi")}
                   disabled={!playerName.trim()}
-                  className="h-auto py-4 flex flex-col gap-2"
+                  className="w-full h-auto py-4 flex flex-col gap-2 border-2 hover:bg-primary/10 hover:border-primary"
                   data-testid="button-multi-mode"
                 >
-                  <Globe className="w-5 h-5" />
-                  <span>Multiplayer</span>
+                  <Globe className="w-5 h-5 text-primary" />
+                  <span className="font-semibold">Multiplayer</span>
                   <span className="text-xs opacity-70">Play with friends</span>
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setMode("olympics")}
+                  disabled={!playerName.trim()}
+                  className="w-full h-auto py-4 flex flex-col gap-2 border-2 hover:bg-primary/10 hover:border-primary"
+                  data-testid="button-olympics-mode"
+                >
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-primary" />
+                    <Flag className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-semibold">The Whist World Cup</span>
+                  <span className="text-xs opacity-70">49 countries compete in a tournament</span>
+                </Button>
               </div>
-              <Button
-                variant="secondary"
-                onClick={() => setMode("olympics")}
-                disabled={!playerName.trim()}
-                className="w-full h-auto py-4 flex flex-col gap-2"
-                data-testid="button-olympics-mode"
-              >
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-yellow-500" />
-                  <Flag className="w-4 h-4" />
-                </div>
-                <span className="font-semibold">The Whist World Cup</span>
-                <span className="text-xs opacity-70">49 countries compete in a tournament</span>
-              </Button>
               <Button
                 variant="ghost"
                 className="w-full"
