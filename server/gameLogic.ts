@@ -12,6 +12,10 @@ import {
   ranks,
   OlympicsState,
   GroupResult,
+  GameFormat,
+  KellerPlayerState,
+  HaloMinigameState,
+  BrucieBonusState,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateOlympicsPlayers, generateMatchReport, generateChampionQuote } from "@shared/olympicsData";
@@ -60,7 +64,7 @@ export class Game {
   private cpuProcessingTimeout: NodeJS.Timeout | null = null; // Track CPU processing timeout
   private speedMultiplier: number = 1; // 0.25 = very fast, 0.5 = fast, 1 = normal, 2 = slow
 
-  constructor(hostName: string, hostId: string, isSinglePlayer: boolean = false, cpuCount: number = 0) {
+  constructor(hostName: string, hostId: string, isSinglePlayer: boolean = false, cpuCount: number = 0, gameFormat: GameFormat = "traditional") {
     this.state = {
       id: generateGameId(),
       phase: "lobby",
@@ -76,6 +80,7 @@ export class Game {
       dealerCards: [],
       roundHistory: [],
       isSinglePlayer,
+      gameFormat,
     };
 
     // Add CPU players for single player mode
@@ -84,6 +89,32 @@ export class Game {
         this.state.players.push(this.createPlayer(CPU_NAMES[i], randomUUID(), true));
       }
     }
+
+    // Initialize Keller state if using Keller format
+    if (gameFormat === "keller") {
+      this.initializeKellerPlayerStates();
+    }
+  }
+
+  // Initialize Keller-specific state for all players
+  private initializeKellerPlayerStates(): void {
+    this.state.kellerPlayerStates = {};
+    for (const player of this.state.players) {
+      this.state.kellerPlayerStates[player.id] = this.createKellerPlayerState();
+    }
+  }
+
+  private createKellerPlayerState(): KellerPlayerState {
+    return {
+      consecutiveZeroCalls: 0,
+      blindRoundsCompleted: 0,
+      blindRoundsRemaining: 3,
+      isInBlindMode: false,
+      blindModeStartedRound: null,
+      swapUsed: false,
+      haloScore: null,
+      brucieMultiplier: 2, // Default multiplier
+    };
   }
 
   setOnStateUpdate(callback: StateUpdateCallback): void {
@@ -115,6 +146,7 @@ export class Game {
       isDealer: false,
       isConnected: true,
       isCPU,
+      isBlindCalling: false,
     };
   }
 
@@ -124,6 +156,12 @@ export class Game {
     if (this.state.players.some(p => p.name.toLowerCase() === name.toLowerCase())) return false;
 
     this.state.players.push(this.createPlayer(name, playerId, false));
+
+    // Add Keller state for new player if in Keller format
+    if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates) {
+      this.state.kellerPlayerStates[playerId] = this.createKellerPlayerState();
+    }
+
     return true;
   }
 
@@ -189,6 +227,75 @@ export class Game {
     }
   }
 
+  // Start blind rounds for a player (Keller format)
+  startBlindRounds(playerId: string): boolean {
+    if (this.state.gameFormat !== "keller" || !this.state.kellerPlayerStates) return false;
+    if (this.state.phase !== "calling") return false;
+
+    const kellerState = this.state.kellerPlayerStates[playerId];
+    if (!kellerState) return false;
+
+    // Can only start if not already in blind mode and haven't completed 3 blind rounds
+    if (kellerState.isInBlindMode || kellerState.blindRoundsCompleted >= 3) return false;
+
+    kellerState.isInBlindMode = true;
+    kellerState.blindModeStartedRound = this.state.currentRound;
+
+    // Set current player as blind calling
+    const player = this.state.players.find(p => p.id === playerId);
+    if (player) {
+      player.isBlindCalling = true;
+    }
+
+    this.notifyStateUpdate();
+    return true;
+  }
+
+  // Use the One Swap One Time ability (Keller format)
+  useSwap(playerId: string, cardToSwap: Card): boolean {
+    if (this.state.gameFormat !== "keller" || !this.state.kellerPlayerStates) return false;
+    if (this.state.phase !== "calling") return false;
+
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    // Can only swap on your turn
+    if (this.state.players[this.state.currentPlayerIndex].id !== playerId) return false;
+
+    const kellerState = this.state.kellerPlayerStates[playerId];
+    if (!kellerState || kellerState.swapUsed) return false;
+
+    // Check if card is in hand
+    const cardIndex = player.hand.findIndex(
+      c => c.suit === cardToSwap.suit && c.rank === cardToSwap.rank
+    );
+    if (cardIndex === -1) return false;
+
+    // Check if there are cards in the swap deck
+    if (!this.state.swapDeck || this.state.swapDeck.length === 0) return false;
+
+    // Perform the swap
+    const removedCard = player.hand.splice(cardIndex, 1)[0];
+    const newCard = this.state.swapDeck.shift()!;
+    player.hand.push(newCard);
+
+    // Put the removed card at the end of the deck
+    this.state.swapDeck.push(removedCard);
+
+    // Re-sort hand
+    player.hand.sort((a, b) => {
+      const suitOrder: Record<Suit, number> = { spades: 0, hearts: 1, diamonds: 2, clubs: 3 };
+      if (suitOrder[a.suit] !== suitOrder[b.suit]) {
+        return suitOrder[a.suit] - suitOrder[b.suit];
+      }
+      return getRankValue(a.rank) - getRankValue(b.rank);
+    });
+
+    kellerState.swapUsed = true;
+    this.notifyStateUpdate();
+    return true;
+  }
+
   private startRound(roundNumber: number): void {
     const config = roundConfigs[roundNumber - 1];
     if (!config) return;
@@ -205,6 +312,7 @@ export class Game {
       p.hand = [];
       p.call = null;
       p.tricksWon = 0;
+      p.isBlindCalling = false;
     });
 
     // Deal cards
@@ -214,6 +322,11 @@ export class Game {
       for (let p = 0; p < this.state.players.length; p++) {
         this.state.players[p].hand.push(deck[cardIndex++]);
       }
+    }
+
+    // Store remaining deck for swap functionality (Keller format)
+    if (this.state.gameFormat === "keller") {
+      this.state.swapDeck = deck.slice(cardIndex);
     }
 
     // Sort each player's hand
@@ -226,6 +339,31 @@ export class Game {
         return getRankValue(a.rank) - getRankValue(b.rank);
       });
     });
+
+    // Handle Keller blind mode
+    if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates) {
+      for (const player of this.state.players) {
+        const kellerState = this.state.kellerPlayerStates[player.id];
+        if (kellerState) {
+          // Auto-trigger blind mode for rounds 11-13 if not yet completed 3 blind rounds
+          if (roundNumber >= 11 && kellerState.blindRoundsCompleted < 3 && !kellerState.isInBlindMode) {
+            const roundsLeft = 13 - roundNumber + 1;
+            const blindRoundsNeeded = 3 - kellerState.blindRoundsCompleted;
+            if (roundsLeft <= blindRoundsNeeded) {
+              kellerState.isInBlindMode = true;
+              if (kellerState.blindModeStartedRound === null) {
+                kellerState.blindModeStartedRound = roundNumber;
+              }
+            }
+          }
+
+          // Mark player as blind calling if in blind mode
+          if (kellerState.isInBlindMode && kellerState.blindRoundsCompleted < 3) {
+            player.isBlindCalling = true;
+          }
+        }
+      }
+    }
 
     // Set calling phase, starting with player to the left of dealer
     this.state.phase = "calling";
@@ -307,7 +445,15 @@ export class Game {
     
     let call = Math.round(expectedWins);
     call = Math.max(0, Math.min(call, this.state.cardCount));
-    
+
+    // No3Z rule for Keller format - cannot call 0 three times in a row
+    if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates) {
+      const kellerState = this.state.kellerPlayerStates[player.id];
+      if (kellerState && kellerState.consecutiveZeroCalls >= 2 && call === 0) {
+        call = 1; // Must call at least 1
+      }
+    }
+
     // Check dealer restriction
     if (player.isDealer) {
       const totalCalled = this.state.players.reduce((sum, p) => sum + (p.call ?? 0), 0);
@@ -317,8 +463,13 @@ export class Game {
         // Try both directions and pick the valid one closest to expected wins
         const higher = forbidden + 1;
         const lower = forbidden - 1;
+
+        // Check No3Z restriction when considering lower option
+        const canCallZero = !(this.state.gameFormat === "keller" &&
+          this.state.kellerPlayerStates &&
+          this.state.kellerPlayerStates[player.id]?.consecutiveZeroCalls >= 2);
+        const validLower = lower >= 0 && (lower !== 0 || canCallZero);
         const validHigher = higher <= this.state.cardCount;
-        const validLower = lower >= 0;
 
         if (validHigher && validLower) {
           // Both directions valid, pick based on expected wins
@@ -514,7 +665,27 @@ export class Game {
       if (call === forbidden) return false;
     }
 
+    // No3Z rule for Keller format
+    if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates) {
+      const kellerState = this.state.kellerPlayerStates[playerId];
+      if (kellerState && call === 0 && kellerState.consecutiveZeroCalls >= 2) {
+        return false; // Cannot call 0 three times in a row
+      }
+    }
+
     player.call = call;
+
+    // Update consecutive zero calls tracking for Keller format
+    if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates) {
+      const kellerState = this.state.kellerPlayerStates[playerId];
+      if (kellerState) {
+        if (call === 0) {
+          kellerState.consecutiveZeroCalls++;
+        } else {
+          kellerState.consecutiveZeroCalls = 0;
+        }
+      }
+    }
 
     // Move to next player or start playing
     const nextIndex = (this.state.currentPlayerIndex + 1) % this.state.players.length;
@@ -688,6 +859,14 @@ export class Game {
         roundScore *= 2;
       }
 
+      // Keller format: Apply Brucie multiplier on round 13
+      if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates && this.state.currentRound === 13) {
+        const kellerState = this.state.kellerPlayerStates[player.id];
+        if (kellerState) {
+          roundScore *= kellerState.brucieMultiplier;
+        }
+      }
+
       player.score += roundScore;
 
       roundResult.playerResults.push({
@@ -697,6 +876,30 @@ export class Game {
         tricksWon: player.tricksWon,
         roundScore,
       });
+
+      // Keller format: Track blind round completion
+      if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates) {
+        const kellerState = this.state.kellerPlayerStates[player.id];
+        if (kellerState && player.isBlindCalling) {
+          kellerState.blindRoundsCompleted++;
+          kellerState.blindRoundsRemaining = 3 - kellerState.blindRoundsCompleted;
+          if (kellerState.blindRoundsCompleted >= 3) {
+            kellerState.isInBlindMode = false;
+          }
+        }
+        // Reset isBlindCalling for next round
+        player.isBlindCalling = false;
+      }
+    }
+
+    // Keller format: Add Halo scores after round 8
+    if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates && this.state.currentRound === 8) {
+      for (const player of this.state.players) {
+        const kellerState = this.state.kellerPlayerStates[player.id];
+        if (kellerState && kellerState.haloScore !== null) {
+          player.score += kellerState.haloScore;
+        }
+      }
     }
 
     this.state.roundHistory.push(roundResult);
@@ -712,6 +915,24 @@ export class Game {
       return;
     }
 
+    // Keller format: Trigger minigames at specific rounds
+    if (this.state.gameFormat === "keller") {
+      // After round 7, trigger Halo minigame
+      if (this.state.currentRound === 7) {
+        this.startHaloMinigame();
+        return;
+      }
+      // After round 12, trigger Brucie Bonus
+      if (this.state.currentRound === 12) {
+        this.startBrucieBonus();
+        return;
+      }
+    }
+
+    this.proceedToNextRound();
+  }
+
+  private proceedToNextRound(): void {
     // Move dealer to next player
     this.state.players.forEach(p => p.isDealer = false);
     this.state.dealerIndex = (this.state.dealerIndex + 1) % this.state.players.length;
@@ -721,6 +942,284 @@ export class Game {
     this.startRound(this.state.currentRound + 1);
     this.notifyStateUpdate();
     this.processCPUTurns();
+  }
+
+  // ==================== HALO MINIGAME (Keller format) ====================
+
+  private startHaloMinigame(): void {
+    if (this.state.gameFormat !== "keller") return;
+
+    // Initialize Halo state
+    this.state.haloMinigame = {
+      currentPlayerId: this.state.players[0].id,
+      currentCard: this.drawRandomCard(),
+      correctGuesses: 0,
+      isComplete: false,
+      playerResults: [],
+    };
+
+    this.state.phase = "halo_minigame";
+    this.notifyStateUpdate();
+
+    // Process CPU if first player is CPU
+    this.processHaloCPU();
+  }
+
+  private drawRandomCard(): Card {
+    const suit = suits[Math.floor(Math.random() * suits.length)];
+    const rank = ranks[Math.floor(Math.random() * ranks.length)];
+    return { suit, rank };
+  }
+
+  haloGuess(playerId: string, guess: "higher" | "lower" | "same"): boolean {
+    if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
+    if (this.state.haloMinigame.currentPlayerId !== playerId) return false;
+    if (!this.state.haloMinigame.currentCard) return false;
+
+    const currentCard = this.state.haloMinigame.currentCard;
+    const currentValue = getRankValue(currentCard.rank);
+    const nextCard = this.drawRandomCard();
+    const nextValue = getRankValue(nextCard.rank);
+
+    let correct = false;
+    if (guess === "higher" && nextValue > currentValue) correct = true;
+    if (guess === "lower" && nextValue < currentValue) correct = true;
+    if (guess === "same" && nextValue === currentValue) correct = true;
+
+    if (correct) {
+      this.state.haloMinigame.correctGuesses++;
+      this.state.haloMinigame.currentCard = nextCard;
+
+      // Max 7 correct guesses
+      if (this.state.haloMinigame.correctGuesses >= 7) {
+        this.haloBank(playerId);
+        return true;
+      }
+
+      this.notifyStateUpdate();
+      return true;
+    } else {
+      // Wrong guess - score is 0, move to next player
+      this.completeHaloForPlayer(playerId, 0);
+      return true;
+    }
+  }
+
+  haloBank(playerId: string): boolean {
+    if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
+    if (this.state.haloMinigame.currentPlayerId !== playerId) return false;
+
+    const score = this.state.haloMinigame.correctGuesses ** 2; // score = correct^2
+    this.completeHaloForPlayer(playerId, score);
+    return true;
+  }
+
+  private completeHaloForPlayer(playerId: string, score: number): void {
+    if (!this.state.haloMinigame || !this.state.kellerPlayerStates) return;
+
+    // Store result
+    this.state.haloMinigame.playerResults.push({ playerId, score });
+
+    // Update keller state
+    const kellerState = this.state.kellerPlayerStates[playerId];
+    if (kellerState) {
+      kellerState.haloScore = score;
+    }
+
+    // Move to next player
+    const currentIdx = this.state.players.findIndex(p => p.id === playerId);
+    const nextIdx = currentIdx + 1;
+
+    if (nextIdx >= this.state.players.length) {
+      // All players finished
+      this.state.haloMinigame.isComplete = true;
+      this.state.haloMinigame.currentPlayerId = null;
+      this.state.haloMinigame.currentCard = null;
+      this.state.phase = "round_end";
+      this.notifyStateUpdate();
+    } else {
+      // Next player
+      this.state.haloMinigame.currentPlayerId = this.state.players[nextIdx].id;
+      this.state.haloMinigame.currentCard = this.drawRandomCard();
+      this.state.haloMinigame.correctGuesses = 0;
+      this.notifyStateUpdate();
+      this.processHaloCPU();
+    }
+  }
+
+  private processHaloCPU(): void {
+    if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return;
+
+    const currentPlayer = this.state.players.find(p => p.id === this.state.haloMinigame?.currentPlayerId);
+    if (!currentPlayer || !currentPlayer.isCPU) return;
+
+    // CPU Halo strategy: 60% chance to guess, 40% to bank (if any correct)
+    const makeGuess = () => {
+      if (!this.state.haloMinigame || !this.state.haloMinigame.currentCard) return;
+
+      const correctGuesses = this.state.haloMinigame.correctGuesses;
+      const currentValue = getRankValue(this.state.haloMinigame.currentCard.rank);
+
+      // Higher chance to bank with more correct guesses
+      const bankProbability = Math.min(0.2 + (correctGuesses * 0.15), 0.8);
+      if (correctGuesses > 0 && Math.random() < bankProbability) {
+        this.haloBank(currentPlayer.id);
+        return;
+      }
+
+      // Decide guess based on current card value
+      let guess: "higher" | "lower" | "same";
+      if (currentValue <= 4) {
+        guess = "higher";
+      } else if (currentValue >= 12) {
+        guess = "lower";
+      } else if (currentValue === 8 && Math.random() < 0.1) {
+        guess = "same";
+      } else {
+        guess = Math.random() < 0.5 ? "higher" : "lower";
+      }
+
+      this.haloGuess(currentPlayer.id, guess);
+    };
+
+    setTimeout(makeGuess, (800 + Math.random() * 400) * this.speedMultiplier);
+  }
+
+  // ==================== BRUCIE BONUS (Keller format) ====================
+
+  private startBrucieBonus(): void {
+    if (this.state.gameFormat !== "keller") return;
+
+    // Initialize Brucie state
+    this.state.brucieBonus = {
+      currentPlayerId: this.state.players[0].id,
+      currentCard: this.drawRandomCard(),
+      correctGuesses: 0,
+      isComplete: false,
+      playerMultipliers: [],
+    };
+
+    this.state.phase = "brucie_bonus";
+    this.notifyStateUpdate();
+
+    // Process CPU if first player is CPU
+    this.processBrucieCPU();
+  }
+
+  brucieGuess(playerId: string, guess: "higher" | "lower"): boolean {
+    if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
+    if (this.state.brucieBonus.currentPlayerId !== playerId) return false;
+    if (!this.state.brucieBonus.currentCard) return false;
+
+    const currentCard = this.state.brucieBonus.currentCard;
+    const currentValue = getRankValue(currentCard.rank);
+    const nextCard = this.drawRandomCard();
+    const nextValue = getRankValue(nextCard.rank);
+
+    let correct = false;
+    if (guess === "higher" && nextValue > currentValue) correct = true;
+    if (guess === "lower" && nextValue < currentValue) correct = true;
+    // Same value counts as wrong for Brucie
+
+    if (correct) {
+      this.state.brucieBonus.correctGuesses++;
+      this.state.brucieBonus.currentCard = nextCard;
+
+      // Max 3 correct guesses = 3x multiplier
+      if (this.state.brucieBonus.correctGuesses >= 3) {
+        this.completeBrucieForPlayer(playerId, 3);
+        return true;
+      }
+
+      this.notifyStateUpdate();
+      return true;
+    } else {
+      // Wrong guess - multiplier is 1x
+      this.completeBrucieForPlayer(playerId, 1);
+      return true;
+    }
+  }
+
+  brucieBank(playerId: string): boolean {
+    if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
+    if (this.state.brucieBonus.currentPlayerId !== playerId) return false;
+
+    // Multiplier: 0 correct = 2x (default), 1 = 2x, 2 = 2x, 3 = 3x (but they auto-complete at 3)
+    // Actually banking gives current correct + 2 (min 2, max 3)
+    const multiplier = Math.min(this.state.brucieBonus.correctGuesses + 2, 3);
+    this.completeBrucieForPlayer(playerId, multiplier);
+    return true;
+  }
+
+  skipBrucie(playerId: string): boolean {
+    if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
+    if (this.state.brucieBonus.currentPlayerId !== playerId) return false;
+    if (this.state.brucieBonus.correctGuesses > 0) return false; // Can only skip before playing
+
+    // Skip gives default 2x multiplier
+    this.completeBrucieForPlayer(playerId, 2);
+    return true;
+  }
+
+  private completeBrucieForPlayer(playerId: string, multiplier: number): void {
+    if (!this.state.brucieBonus || !this.state.kellerPlayerStates) return;
+
+    // Store result
+    this.state.brucieBonus.playerMultipliers.push({ playerId, multiplier });
+
+    // Update keller state
+    const kellerState = this.state.kellerPlayerStates[playerId];
+    if (kellerState) {
+      kellerState.brucieMultiplier = multiplier;
+    }
+
+    // Move to next player
+    const currentIdx = this.state.players.findIndex(p => p.id === playerId);
+    const nextIdx = currentIdx + 1;
+
+    if (nextIdx >= this.state.players.length) {
+      // All players finished
+      this.state.brucieBonus.isComplete = true;
+      this.state.brucieBonus.currentPlayerId = null;
+      this.state.brucieBonus.currentCard = null;
+      this.state.phase = "round_end";
+      this.notifyStateUpdate();
+    } else {
+      // Next player
+      this.state.brucieBonus.currentPlayerId = this.state.players[nextIdx].id;
+      this.state.brucieBonus.currentCard = this.drawRandomCard();
+      this.state.brucieBonus.correctGuesses = 0;
+      this.notifyStateUpdate();
+      this.processBrucieCPU();
+    }
+  }
+
+  private processBrucieCPU(): void {
+    if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return;
+
+    const currentPlayer = this.state.players.find(p => p.id === this.state.brucieBonus?.currentPlayerId);
+    if (!currentPlayer || !currentPlayer.isCPU) return;
+
+    const makeGuess = () => {
+      if (!this.state.brucieBonus || !this.state.brucieBonus.currentCard) return;
+
+      const correctGuesses = this.state.brucieBonus.correctGuesses;
+      const currentValue = getRankValue(this.state.brucieBonus.currentCard.rank);
+
+      // CPU always plays (doesn't skip) for potential higher multiplier
+      // Bank probability increases with correct guesses
+      const bankProbability = correctGuesses * 0.35;
+      if (correctGuesses > 0 && Math.random() < bankProbability) {
+        this.brucieBank(currentPlayer.id);
+        return;
+      }
+
+      // Decide guess based on current card value
+      const guess: "higher" | "lower" = currentValue <= 7 ? "higher" : "lower";
+      this.brucieGuess(currentPlayer.id, guess);
+    };
+
+    setTimeout(makeGuess, (800 + Math.random() * 400) * this.speedMultiplier);
   }
 
   // Start the Olympics qualifying round - human plays Group 1, others simulated
@@ -1131,6 +1630,19 @@ export class Game {
       }
     }
 
+    // Keller format: Hide own cards during blind calling phase
+    if (state.phase === "calling" && state.gameFormat === "keller") {
+      const currentPlayer = state.players.find(p => p.id === playerId);
+      if (currentPlayer?.isBlindCalling) {
+        currentPlayer.hand = currentPlayer.hand.map(() => ({ suit: "clubs" as Suit, rank: "2" as Rank }));
+      }
+    }
+
+    // Hide swap deck from all players
+    if (state.swapDeck) {
+      state.swapDeck = [];
+    }
+
     return state;
   }
 }
@@ -1140,22 +1652,22 @@ class GameManager {
   private games: Map<string, Game> = new Map();
   private playerGameMap: Map<string, string> = new Map(); // playerId -> gameId
 
-  createGame(hostName: string, hostId: string): Game {
-    const game = new Game(hostName, hostId, false, 0);
+  createGame(hostName: string, hostId: string, gameFormat: GameFormat = "traditional"): Game {
+    const game = new Game(hostName, hostId, false, 0, gameFormat);
     this.games.set(game.state.id, game);
     this.playerGameMap.set(hostId, game.state.id);
     return game;
   }
 
-  createSinglePlayerGame(hostName: string, hostId: string, cpuCount: number): Game {
-    const game = new Game(hostName, hostId, true, cpuCount);
+  createSinglePlayerGame(hostName: string, hostId: string, cpuCount: number, gameFormat: GameFormat = "traditional"): Game {
+    const game = new Game(hostName, hostId, true, cpuCount, gameFormat);
     this.games.set(game.state.id, game);
     this.playerGameMap.set(hostId, game.state.id);
     return game;
   }
 
-  createOlympicsGame(hostName: string, hostId: string, preferredCountryCode?: string): Game {
-    const game = new Game(hostName, hostId, true, 0);
+  createOlympicsGame(hostName: string, hostId: string, preferredCountryCode?: string, gameFormat: GameFormat = "traditional"): Game {
+    const game = new Game(hostName, hostId, true, 0, gameFormat);
 
     // Generate all 49 World Cup players
     let olympicsPlayers = generateOlympicsPlayers();
@@ -1231,7 +1743,24 @@ class GameManager {
     // Set current game players to first group (where human is)
     game.state.players = allPlayers.slice(0, 7);
     game.state.phase = "lobby"; // Keep in lobby until qualifying starts
-    
+
+    // Initialize Keller state for all Olympics players if using Keller format
+    if (gameFormat === "keller") {
+      game.state.kellerPlayerStates = {};
+      for (const player of allPlayers) {
+        game.state.kellerPlayerStates[player.id] = {
+          consecutiveZeroCalls: 0,
+          blindRoundsCompleted: 0,
+          blindRoundsRemaining: 3,
+          isInBlindMode: false,
+          blindModeStartedRound: null,
+          swapUsed: false,
+          haloScore: null,
+          brucieMultiplier: 2,
+        };
+      }
+    }
+
     this.games.set(game.state.id, game);
     this.playerGameMap.set(hostId, game.state.id);
     return game;

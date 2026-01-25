@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { EyeOff, AlertTriangle } from "lucide-react";
 
 interface CallDialogProps {
   cardCount: number;
@@ -10,6 +11,8 @@ interface CallDialogProps {
   isDealer: boolean;
   onMakeCall: (call: number) => void;
   playerName: string;
+  isBlindCalling?: boolean;
+  cannotCallZero?: boolean;
 }
 
 export function CallDialog({
@@ -18,6 +21,8 @@ export function CallDialog({
   isDealer,
   onMakeCall,
   playerName,
+  isBlindCalling = false,
+  cannotCallZero = false,
 }: CallDialogProps) {
   const [selectedCall, setSelectedCall] = useState<number | null>(null);
 
@@ -57,6 +62,30 @@ export function CallDialog({
           </div>
         )}
 
+        {/* Blind Calling Warning */}
+        {isBlindCalling && (
+          <div className="p-3 rounded-md bg-purple-500/10 border border-purple-500/20">
+            <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+              <EyeOff className="w-4 h-4" />
+              <p className="text-sm font-medium">
+                Blind Round! You cannot see your cards.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* No3Z Warning */}
+        {cannotCallZero && (
+          <div className="p-3 rounded-md bg-orange-500/10 border border-orange-500/20">
+            <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
+              <AlertTriangle className="w-4 h-4" />
+              <p className="text-sm font-medium">
+                No3Z Rule! You cannot call 0 (called 0 twice in a row)
+              </p>
+            </div>
+          </div>
+        )}
+
         {isDealer && forbiddenCall !== null && forbiddenCall >= 0 && forbiddenCall <= cardCount && (
           <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
             <p className="text-sm text-destructive">
@@ -67,9 +96,11 @@ export function CallDialog({
 
         <div className="grid grid-cols-4 gap-2">
           {possibleCalls.map((call) => {
-            const isForbidden = isDealer && call === forbiddenCall;
+            const isForbiddenDealer = isDealer && call === forbiddenCall;
+            const isForbiddenNo3Z = cannotCallZero && call === 0;
+            const isForbidden = isForbiddenDealer || isForbiddenNo3Z;
             const isSelected = selectedCall === call;
-            
+
             return (
               <Button
                 key={call}

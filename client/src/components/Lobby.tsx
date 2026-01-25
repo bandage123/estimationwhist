@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag } from "lucide-react";
+import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Player } from "@shared/schema";
+import { Player, GameFormat } from "@shared/schema";
 
 // Inline a few countries and adjectives for the selector
 const COUNTRIES_SELECT = [
@@ -30,9 +30,9 @@ const COUNTRIES_SELECT = [
 
 
 interface LobbyCreateProps {
-  onCreateGame: (playerName: string) => void;
-  onCreateSinglePlayerGame: (playerName: string, cpuCount: number) => void;
-  onCreateOlympicsGame: (playerName: string, countryCode?: string) => void;
+  onCreateGame: (playerName: string, gameFormat?: GameFormat) => void;
+  onCreateSinglePlayerGame: (playerName: string, cpuCount: number, gameFormat?: GameFormat) => void;
+  onCreateOlympicsGame: (playerName: string, countryCode?: string, gameFormat?: GameFormat) => void;
   onJoinGame: (gameId: string, playerName: string) => void;
   isConnecting: boolean;
 }
@@ -43,16 +43,17 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
   const [mode, setMode] = useState<"single" | "olympics" | "multi" | "join" | null>(null);
   const [cpuCount, setCpuCount] = useState("3");
   const [selectedCountry, setSelectedCountry] = useState("");
+  const [gameFormat, setGameFormat] = useState<GameFormat>("traditional");
 
   const handleCreateMultiplayer = () => {
     if (playerName.trim()) {
-      onCreateGame(playerName.trim());
+      onCreateGame(playerName.trim(), gameFormat);
     }
   };
 
   const handleCreateSinglePlayer = () => {
     if (playerName.trim()) {
-      onCreateSinglePlayerGame(playerName.trim(), parseInt(cpuCount));
+      onCreateSinglePlayerGame(playerName.trim(), parseInt(cpuCount), gameFormat);
     }
   };
 
@@ -60,7 +61,8 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
     if (playerName.trim()) {
       onCreateOlympicsGame(
         playerName.trim(),
-        selectedCountry && selectedCountry !== "random" ? selectedCountry : undefined
+        selectedCountry && selectedCountry !== "random" ? selectedCountry : undefined,
+        gameFormat
       );
     }
   };
@@ -174,6 +176,29 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                 </Select>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Game Format</label>
+                <Select value={gameFormat} onValueChange={(v) => setGameFormat(v as GameFormat)}>
+                  <SelectTrigger className="h-8 text-xs" data-testid="select-game-format-olympics">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="traditional">Traditional</SelectItem>
+                    <SelectItem value="keller">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-3 h-3 text-purple-500" />
+                        Keller Rules
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {gameFormat === "keller" && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Includes: No3Z, Blind Mice, Swap, Halo & Brucie
+                  </p>
+                )}
+              </div>
+
               <Button
                 className="w-full"
                 size="sm"
@@ -206,21 +231,45 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                   <Bot className="w-5 h-5 text-primary" />
                   <span className="font-medium">Single Player Mode</span>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-muted-foreground">Number of CPU opponents</label>
-                  <Select value={cpuCount} onValueChange={setCpuCount}>
-                    <SelectTrigger data-testid="select-cpu-count">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 opponent</SelectItem>
-                      <SelectItem value="2">2 opponents</SelectItem>
-                      <SelectItem value="3">3 opponents</SelectItem>
-                      <SelectItem value="4">4 opponents</SelectItem>
-                      <SelectItem value="5">5 opponents</SelectItem>
-                      <SelectItem value="6">6 opponents</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Number of CPU opponents</label>
+                    <Select value={cpuCount} onValueChange={setCpuCount}>
+                      <SelectTrigger data-testid="select-cpu-count">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 opponent</SelectItem>
+                        <SelectItem value="2">2 opponents</SelectItem>
+                        <SelectItem value="3">3 opponents</SelectItem>
+                        <SelectItem value="4">4 opponents</SelectItem>
+                        <SelectItem value="5">5 opponents</SelectItem>
+                        <SelectItem value="6">6 opponents</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Game Format</label>
+                    <Select value={gameFormat} onValueChange={(v) => setGameFormat(v as GameFormat)}>
+                      <SelectTrigger data-testid="select-game-format">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="traditional">Traditional</SelectItem>
+                        <SelectItem value="keller">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-3 h-3 text-purple-500" />
+                            Keller Rules
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {gameFormat === "keller" && (
+                      <p className="text-xs text-muted-foreground">
+                        Includes: No3Z, Three Blind Mice, One Swap One Time, Halo & Brucie Bonus
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               <Button
@@ -253,9 +302,31 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                   <Globe className="w-5 h-5 text-primary" />
                   <span className="font-medium">Multiplayer Mode</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-3">
                   Create a game and share the code with friends to join.
                 </p>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Game Format</label>
+                  <Select value={gameFormat} onValueChange={(v) => setGameFormat(v as GameFormat)}>
+                    <SelectTrigger data-testid="select-game-format-multi">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="traditional">Traditional</SelectItem>
+                      <SelectItem value="keller">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-3 h-3 text-purple-500" />
+                          Keller Rules
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {gameFormat === "keller" && (
+                    <p className="text-xs text-muted-foreground">
+                      Includes: No3Z, Three Blind Mice, One Swap One Time, Halo & Brucie Bonus
+                    </p>
+                  )}
+                </div>
               </div>
               <Button
                 className="w-full"

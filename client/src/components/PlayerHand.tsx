@@ -10,6 +10,8 @@ interface PlayerHandProps {
   playableCards?: Card[];
   isCurrentPlayer: boolean;
   leadSuit?: Suit | null;
+  swapMode?: boolean;
+  onSwapCard?: (card: Card) => void;
 }
 
 export function PlayerHand({
@@ -19,6 +21,8 @@ export function PlayerHand({
   onSelectCard,
   playableCards,
   isCurrentPlayer,
+  swapMode,
+  onSwapCard,
 }: PlayerHandProps) {
   const sortedCards = [...cards].sort((a, b) => {
     const suitOrder: Record<Suit, number> = { spades: 0, hearts: 1, diamonds: 2, clubs: 3 };
@@ -35,8 +39,14 @@ export function PlayerHand({
   };
 
   const handleCardClick = (card: Card) => {
+    // Handle swap mode
+    if (swapMode && onSwapCard) {
+      onSwapCard(card);
+      return;
+    }
+
     if (!isCurrentPlayer) return;
-    
+
     if (!isCardPlayable(card)) return;
 
     if (selectedCard?.suit === card.suit && selectedCard?.rank === card.rank) {
@@ -116,7 +126,12 @@ export function PlayerHand({
         })}
       </div>
 
-      {isCurrentPlayer && selectedCard && (
+      {swapMode && (
+        <p className="text-[10px] md:text-sm text-blue-600 font-medium animate-pulse">
+          Select a card to swap from your hand
+        </p>
+      )}
+      {isCurrentPlayer && selectedCard && !swapMode && (
         <p className="text-[10px] md:text-sm text-muted-foreground">
           Tap again to play
         </p>

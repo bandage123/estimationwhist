@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting } from "@shared/schema";
+import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat } from "@shared/schema";
 
 interface UseWebSocketReturn {
   gameState: GameState | null;
@@ -8,9 +8,9 @@ interface UseWebSocketReturn {
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
-  createGame: (playerName: string) => void;
-  createSinglePlayerGame: (playerName: string, cpuCount: number) => void;
-  createOlympicsGame: (playerName: string, countryCode?: string) => void;
+  createGame: (playerName: string, gameFormat?: GameFormat) => void;
+  createSinglePlayerGame: (playerName: string, cpuCount: number, gameFormat?: GameFormat) => void;
+  createOlympicsGame: (playerName: string, countryCode?: string, gameFormat?: GameFormat) => void;
   joinGame: (gameId: string, playerName: string) => void;
   startGame: () => void;
   makeCall: (call: number) => void;
@@ -20,6 +20,14 @@ interface UseWebSocketReturn {
   startOlympicsQualifying: () => void;
   startOlympicsFinals: () => void;
   setSpeed: (speed: SpeedSetting) => void;
+  // Keller format actions
+  startBlindRounds: () => void;
+  useSwap: (cardToSwap: Card) => void;
+  haloGuess: (guess: "higher" | "lower" | "same") => void;
+  haloBank: () => void;
+  brucieGuess: (guess: "higher" | "lower") => void;
+  brucieBank: () => void;
+  skipBrucie: () => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -124,16 +132,16 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, [connect]);
 
-  const createGame = useCallback((playerName: string) => {
-    sendMessage({ type: "create_game", playerName });
+  const createGame = useCallback((playerName: string, gameFormat?: GameFormat) => {
+    sendMessage({ type: "create_game", playerName, gameFormat });
   }, [sendMessage]);
 
-  const createSinglePlayerGame = useCallback((playerName: string, cpuCount: number) => {
-    sendMessage({ type: "create_single_player_game", playerName, cpuCount });
+  const createSinglePlayerGame = useCallback((playerName: string, cpuCount: number, gameFormat?: GameFormat) => {
+    sendMessage({ type: "create_single_player_game", playerName, cpuCount, gameFormat });
   }, [sendMessage]);
 
-  const createOlympicsGame = useCallback((playerName: string, countryCode?: string) => {
-    sendMessage({ type: "create_olympics_game", playerName, countryCode });
+  const createOlympicsGame = useCallback((playerName: string, countryCode?: string, gameFormat?: GameFormat) => {
+    sendMessage({ type: "create_olympics_game", playerName, countryCode, gameFormat });
   }, [sendMessage]);
 
   const joinGame = useCallback((gameId: string, playerName: string) => {
@@ -173,6 +181,35 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "set_speed", speed });
   }, [sendMessage]);
 
+  // Keller format actions
+  const startBlindRounds = useCallback(() => {
+    sendMessage({ type: "start_blind_rounds" });
+  }, [sendMessage]);
+
+  const useSwap = useCallback((cardToSwap: Card) => {
+    sendMessage({ type: "use_swap", cardToSwap });
+  }, [sendMessage]);
+
+  const haloGuess = useCallback((guess: "higher" | "lower" | "same") => {
+    sendMessage({ type: "halo_guess", guess });
+  }, [sendMessage]);
+
+  const haloBank = useCallback(() => {
+    sendMessage({ type: "halo_bank" });
+  }, [sendMessage]);
+
+  const brucieGuess = useCallback((guess: "higher" | "lower") => {
+    sendMessage({ type: "brucie_guess", guess });
+  }, [sendMessage]);
+
+  const brucieBank = useCallback(() => {
+    sendMessage({ type: "brucie_bank" });
+  }, [sendMessage]);
+
+  const skipBrucie = useCallback(() => {
+    sendMessage({ type: "skip_brucie" });
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -192,5 +229,13 @@ export function useWebSocket(): UseWebSocketReturn {
     startOlympicsQualifying,
     startOlympicsFinals,
     setSpeed,
+    // Keller format actions
+    startBlindRounds,
+    useSwap,
+    haloGuess,
+    haloBank,
+    brucieGuess,
+    brucieBank,
+    skipBrucie,
   };
 }

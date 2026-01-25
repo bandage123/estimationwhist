@@ -24,6 +24,7 @@ export interface Player {
   isCPU: boolean;
   countryCode?: string; // ISO country code for Olympics mode
   countryName?: string; // Country name for Olympics mode
+  isBlindCalling?: boolean; // Keller: true when player is calling blind this round
 }
 
 export interface Trick {
@@ -57,13 +58,48 @@ export const roundConfigs: RoundConfig[] = [
   { roundNumber: 13, cardCount: 7, trump: "hearts", doublePoints: true },
 ];
 
-export type GamePhase = 
+export type GamePhase =
   | "lobby"
   | "determining_dealer"
   | "calling"
   | "playing"
   | "round_end"
+  | "halo_minigame"
+  | "brucie_bonus"
   | "game_end";
+
+// Game format type
+export type GameFormat = "traditional" | "keller";
+
+// Keller-specific player state
+export interface KellerPlayerState {
+  consecutiveZeroCalls: number;       // Track for No3Z rule (0-2, reset when non-zero call made)
+  blindRoundsCompleted: number;       // 0-3, how many blind rounds done
+  blindRoundsRemaining: number;       // 3 minus completed
+  isInBlindMode: boolean;             // Currently in blind calling mode
+  blindModeStartedRound: number | null; // Which round blind mode started
+  swapUsed: boolean;                  // One Swap One Time tracker
+  haloScore: number | null;           // Score from Halo minigame (null if not played yet)
+  brucieMultiplier: number;           // Default 2, modified by Brucie Bonus (1-3)
+}
+
+// Halo Minigame state (after round 7)
+export interface HaloMinigameState {
+  currentPlayerId: string | null;     // Which player is currently playing
+  currentCard: Card | null;           // The card showing
+  correctGuesses: number;             // 0-7
+  isComplete: boolean;                // All players finished
+  playerResults: { playerId: string; score: number }[];
+}
+
+// Brucie Bonus state (after round 12)
+export interface BrucieBonusState {
+  currentPlayerId: string | null;
+  currentCard: Card | null;
+  correctGuesses: number;             // 0-3 max
+  isComplete: boolean;
+  playerMultipliers: { playerId: string; multiplier: number }[];
+}
 
 export interface GroupResult {
   groupNumber: number;
@@ -105,6 +141,12 @@ export interface GameState {
   isOlympics?: boolean;
   olympicsState?: OlympicsState;
   allOlympicsPlayers?: Player[]; // Store all 49 players for Olympics mode
+  // Keller format fields
+  gameFormat: GameFormat;
+  kellerPlayerStates?: Record<string, KellerPlayerState>;
+  haloMinigame?: HaloMinigameState;
+  brucieBonus?: BrucieBonusState;
+  swapDeck?: Card[]; // Remaining deck for swap functionality
 }
 
 export interface RoundResult {
@@ -123,9 +165,9 @@ export type SpeedSetting = 0.25 | 0.5 | 1 | 2;
 
 // WebSocket message types
 export type ClientMessage =
-  | { type: "create_game"; playerName: string }
-  | { type: "create_single_player_game"; playerName: string; cpuCount: number }
-  | { type: "create_olympics_game"; playerName: string; countryCode?: string }
+  | { type: "create_game"; playerName: string; gameFormat?: GameFormat }
+  | { type: "create_single_player_game"; playerName: string; cpuCount: number; gameFormat?: GameFormat }
+  | { type: "create_olympics_game"; playerName: string; countryCode?: string; gameFormat?: GameFormat }
   | { type: "join_game"; gameId: string; playerName: string }
   | { type: "start_game" }
   | { type: "make_call"; call: number }
@@ -136,7 +178,15 @@ export type ClientMessage =
   | { type: "view_olympics_results" }
   | { type: "start_olympics_finals" }
   | { type: "set_speed"; speed: SpeedSetting }
-  | { type: "request_state" };
+  | { type: "request_state" }
+  // Keller format actions
+  | { type: "start_blind_rounds" }
+  | { type: "use_swap"; cardToSwap: Card }
+  | { type: "halo_guess"; guess: "higher" | "lower" | "same" }
+  | { type: "halo_bank" }
+  | { type: "brucie_guess"; guess: "higher" | "lower" }
+  | { type: "brucie_bank" }
+  | { type: "skip_brucie" };
 
 export type ServerMessage =
   | { type: "game_created"; gameId: string; playerId: string }

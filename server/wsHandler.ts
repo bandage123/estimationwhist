@@ -52,20 +52,20 @@ export function setupWebSocket(server: Server): void {
 
         switch (message.type) {
           case "create_game": {
-            const game = gameManager.createGame(message.playerName, client.playerId);
+            const game = gameManager.createGame(message.playerName, client.playerId, message.gameFormat || "traditional");
             client.gameId = game.state.id;
-            
+
             // Set up state update callback for CPU players
             game.setOnStateUpdate(() => {
               broadcastToGame(game);
             });
-            
+
             sendToClient(ws, {
               type: "game_created",
               gameId: game.state.id,
               playerId: client.playerId,
             });
-            
+
             sendToClient(ws, {
               type: "game_state",
               state: game.getStateForPlayer(client.playerId),
@@ -76,9 +76,9 @@ export function setupWebSocket(server: Server): void {
 
           case "create_single_player_game": {
             const cpuCount = Math.max(1, Math.min(6, message.cpuCount));
-            const game = gameManager.createSinglePlayerGame(message.playerName, client.playerId, cpuCount);
+            const game = gameManager.createSinglePlayerGame(message.playerName, client.playerId, cpuCount, message.gameFormat || "traditional");
             client.gameId = game.state.id;
-            
+
             // Set up state update callback for CPU players
             game.setOnStateUpdate(() => {
               sendToClient(ws, {
@@ -87,13 +87,13 @@ export function setupWebSocket(server: Server): void {
                 playerId: client.playerId,
               });
             });
-            
+
             sendToClient(ws, {
               type: "game_created",
               gameId: game.state.id,
               playerId: client.playerId,
             });
-            
+
             sendToClient(ws, {
               type: "game_state",
               state: game.getStateForPlayer(client.playerId),
@@ -103,9 +103,9 @@ export function setupWebSocket(server: Server): void {
           }
 
           case "create_olympics_game": {
-            const game = gameManager.createOlympicsGame(message.playerName, client.playerId, message.countryCode);
+            const game = gameManager.createOlympicsGame(message.playerName, client.playerId, message.countryCode, message.gameFormat || "traditional");
             client.gameId = game.state.id;
-            
+
             // Set up state update callback
             game.setOnStateUpdate(() => {
               sendToClient(ws, {
@@ -114,13 +114,13 @@ export function setupWebSocket(server: Server): void {
                 playerId: client.playerId,
               });
             });
-            
+
             sendToClient(ws, {
               type: "game_created",
               gameId: game.state.id,
               playerId: client.playerId,
             });
-            
+
             sendToClient(ws, {
               type: "game_state",
               state: game.getStateForPlayer(client.playerId),
@@ -309,6 +309,119 @@ export function setupWebSocket(server: Server): void {
                 playerId: client.playerId,
               });
             }
+            break;
+          }
+
+          // Keller format actions
+          case "start_blind_rounds": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.startBlindRounds(client.playerId)) {
+              sendError(ws, "Cannot start blind rounds");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "use_swap": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.useSwap(client.playerId, message.cardToSwap)) {
+              sendError(ws, "Cannot swap card");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "halo_guess": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.haloGuess(client.playerId, message.guess)) {
+              sendError(ws, "Invalid Halo guess");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "halo_bank": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.haloBank(client.playerId)) {
+              sendError(ws, "Cannot bank Halo score");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "brucie_guess": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.brucieGuess(client.playerId, message.guess)) {
+              sendError(ws, "Invalid Brucie guess");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "brucie_bank": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.brucieBank(client.playerId)) {
+              sendError(ws, "Cannot bank Brucie bonus");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "skip_brucie": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.skipBrucie(client.playerId)) {
+              sendError(ws, "Cannot skip Brucie bonus");
+              return;
+            }
+
+            broadcastToGame(game);
             break;
           }
         }

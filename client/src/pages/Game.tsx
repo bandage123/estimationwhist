@@ -7,11 +7,14 @@ import { TrickArea } from "@/components/TrickArea";
 import { PlayerHand } from "@/components/PlayerHand";
 import { ScoreBoard, FinalScoreBoard } from "@/components/ScoreBoard";
 import { RoundEndDisplay } from "@/components/RoundEndDisplay";
+import { KellerStatusBar } from "@/components/KellerStatusBar";
+import { HaloMinigame } from "@/components/HaloMinigame";
+import { BrucieBonus } from "@/components/BrucieBonus";
 import { Card, Suit, Player, SpeedSetting } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge } from "lucide-react";
+import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles } from "lucide-react";
 
 export default function Game() {
   const {
@@ -33,11 +36,20 @@ export default function Game() {
     startOlympicsQualifying,
     startOlympicsFinals,
     setSpeed,
+    // Keller format actions
+    startBlindRounds,
+    useSwap,
+    haloGuess,
+    haloBank,
+    brucieGuess,
+    brucieBank,
+    skipBrucie,
   } = useWebSocket();
 
   const { toast } = useToast();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [currentSpeed, setCurrentSpeed] = useState<SpeedSetting>(1);
+  const [swapMode, setSwapMode] = useState(false);
 
   const handleSpeedChange = (speed: SpeedSetting) => {
     setCurrentSpeed(speed);
@@ -69,6 +81,20 @@ export default function Game() {
     const activePlayer = gameState.players[gameState.currentPlayerIndex];
     return activePlayer?.id === playerId;
   }, [gameState, playerId]);
+
+  // Get Keller player state
+  const kellerState = useMemo(() => {
+    if (!gameState || !playerId || gameState.gameFormat !== "keller") return undefined;
+    return gameState.kellerPlayerStates?.[playerId];
+  }, [gameState, playerId]);
+
+  // Handle swap card selection
+  const handleSwapCard = (card: Card) => {
+    if (swapMode && card) {
+      useSwap(card);
+      setSwapMode(false);
+    }
+  };
 
   // Calculate playable cards based on lead suit and trump
   const playableCards = useMemo(() => {
@@ -325,6 +351,69 @@ export default function Game() {
           dealerCards={gameState.dealerCards}
           players={gameState.players}
           dealerIndex={gameState.dealerIndex >= 0 ? gameState.dealerIndex : null}
+        />
+      </div>
+    );
+  }
+
+  // Halo minigame phase (Keller format)
+  if (gameState.phase === "halo_minigame" && gameState.haloMinigame) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="p-2 border-b flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReturnToMenu}
+            className="gap-2"
+            data-testid="button-return-menu-top"
+          >
+            <Home className="w-4 h-4" />
+            Main Menu
+          </Button>
+          <Badge variant="secondary" className="gap-1 bg-purple-500/10 border-purple-500/20">
+            <Sparkles className="w-3 h-3 text-purple-500" />
+            Keller - Halo
+          </Badge>
+        </div>
+        <HaloMinigame
+          haloState={gameState.haloMinigame}
+          players={gameState.players}
+          playerId={playerId || ""}
+          onGuess={haloGuess}
+          onBank={haloBank}
+        />
+      </div>
+    );
+  }
+
+  // Brucie Bonus phase (Keller format)
+  if (gameState.phase === "brucie_bonus" && gameState.brucieBonus) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="p-2 border-b flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReturnToMenu}
+            className="gap-2"
+            data-testid="button-return-menu-top"
+          >
+            <Home className="w-4 h-4" />
+            Main Menu
+          </Button>
+          <Badge variant="secondary" className="gap-1 bg-green-500/10 border-green-500/20">
+            <Sparkles className="w-3 h-3 text-green-500" />
+            Keller - Brucie Bonus
+          </Badge>
+        </div>
+        <BrucieBonus
+          brucieState={gameState.brucieBonus}
+          players={gameState.players}
+          playerId={playerId || ""}
+          onGuess={brucieGuess}
+          onBank={brucieBank}
+          onSkip={skipBrucie}
         />
       </div>
     );
@@ -603,6 +692,20 @@ export default function Game() {
 
         {/* Main game area */}
         <div className="flex-1 overflow-y-auto p-1 md:p-4">
+          {/* Keller Status Bar */}
+          {gameState.gameFormat === "keller" && kellerState && (gameState.phase === "calling" || gameState.phase === "playing") && (
+            <div className="mb-2">
+              <KellerStatusBar
+                kellerState={kellerState}
+                isCurrentPlayer={isMyTurn}
+                isCallingPhase={gameState.phase === "calling"}
+                onStartBlindRounds={startBlindRounds}
+                onUseSwap={() => setSwapMode(true)}
+                swapMode={swapMode}
+              />
+            </div>
+          )}
+
           {/* Calling phase - show dialog or waiting message */}
           {gameState.phase === "calling" && (
             <>
@@ -616,6 +719,8 @@ export default function Game() {
                     isDealer={currentPlayer.isDealer}
                     onMakeCall={makeCall}
                     playerName={currentPlayer.name}
+                    isBlindCalling={currentPlayer.isBlindCalling}
+                    cannotCallZero={kellerState?.consecutiveZeroCalls !== undefined && kellerState.consecutiveZeroCalls >= 2}
                   />
 
                   <div className="mt-6">
@@ -627,6 +732,8 @@ export default function Game() {
                         cards={currentPlayer.hand}
                         isCurrentPlayer={false}
                         playableCards={[]}
+                        swapMode={swapMode}
+                        onSwapCard={handleSwapCard}
                       />
                     </div>
                   </div>
@@ -660,6 +767,8 @@ export default function Game() {
                           cards={currentPlayer.hand}
                           isCurrentPlayer={false}
                           playableCards={[]}
+                          swapMode={swapMode}
+                          onSwapCard={handleSwapCard}
                         />
                       </div>
                     </div>
