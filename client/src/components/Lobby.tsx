@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Player, GameFormat } from "@shared/schema";
+import { HighScores } from "./HighScores";
 
 // Inline a few countries and adjectives for the selector
 const COUNTRIES_SELECT = [
@@ -74,8 +75,9 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background overflow-y-auto">
+      <div className="w-full max-w-md space-y-4 my-auto">
+        <Card className="w-full">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
             <span className="text-3xl">🃏</span>
@@ -375,6 +377,12 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
           )}
         </CardContent>
       </Card>
+
+      {/* Show high scores on main menu */}
+      {mode === null && (
+        <HighScores highlightFormat={gameFormat} />
+      )}
+      </div>
     </div>
   );
 }

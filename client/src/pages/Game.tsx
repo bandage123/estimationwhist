@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check } from "lucide-react";
+import { saveHighScore } from "@/lib/highScores";
+import { logGameStart, logGameCompletion } from "@/lib/analytics";
 
 export default function Game() {
   const {
@@ -184,6 +186,75 @@ export default function Game() {
       });
     }
   }, [error, toast]);
+
+  // Log game start for analytics (single player only, not Olympics)
+  const gameStartLoggedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      gameState?.phase === "determining_dealer" &&
+      gameState.isSinglePlayer &&
+      !gameState.isOlympics &&
+      currentPlayer &&
+      gameStartLoggedRef.current !== gameState.id
+    ) {
+      gameStartLoggedRef.current = gameState.id;
+      logGameStart(
+        currentPlayer.name,
+        gameState.gameFormat || "traditional",
+        gameState.id
+      );
+    }
+  }, [gameState?.phase, gameState?.id, gameState?.isSinglePlayer, gameState?.isOlympics, gameState?.gameFormat, currentPlayer]);
+
+  // Record high score and log game completion when game ends (single player only, not Olympics)
+  const highScoreRecordedRef = useRef<string | null>(null);
+  useEffect(() => {
+    async function recordGameEnd() {
+      if (
+        gameState?.phase === "game_end" &&
+        gameState.isSinglePlayer &&
+        !gameState.isOlympics &&
+        currentPlayer &&
+        highScoreRecordedRef.current !== gameState.id
+      ) {
+        highScoreRecordedRef.current = gameState.id;
+
+        // Calculate if player won (highest score)
+        const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
+        const won = sortedPlayers[0]?.id === currentPlayer.id;
+
+        // Calculate total tricks called from round history
+        const totalTricksCalled = gameState.roundHistory.reduce((total, round) => {
+          const playerResult = round.playerResults.find(pr => pr.playerId === currentPlayer.id);
+          return total + (playerResult?.call || 0);
+        }, 0);
+
+        // Log game completion for analytics
+        logGameCompletion(
+          currentPlayer.name,
+          gameState.gameFormat || "traditional",
+          gameState.id,
+          currentPlayer.score,
+          won,
+          totalTricksCalled
+        );
+
+        // Save high score
+        const result = await saveHighScore(
+          currentPlayer.name,
+          currentPlayer.score,
+          gameState.gameFormat || "traditional"
+        );
+        if (result.isHighScore && result.rank !== null) {
+          toast({
+            title: result.rank === 1 ? "New High Score!" : "High Score!",
+            description: `You ranked #${result.rank} in ${gameState.gameFormat === "keller" ? "Keller" : "Traditional"} mode!`,
+          });
+        }
+      }
+    }
+    recordGameEnd();
+  }, [gameState?.phase, gameState?.id, gameState?.isSinglePlayer, gameState?.isOlympics, gameState?.gameFormat, gameState?.players, gameState?.roundHistory, currentPlayer, toast]);
 
   const handleReturnToMenu = () => {
     window.location.reload();
