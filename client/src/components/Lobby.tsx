@@ -380,7 +380,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
 
       {/* Show high scores on main menu */}
       {mode === null && (
-        <HighScores highlightFormat={gameFormat} />
+        <HighScores />
       )}
       </div>
     </div>

@@ -6,71 +6,68 @@ export interface HighScoreEntry {
   playerName: string;
   score: number;
   gameFormat: GameFormat;
+  isMultiplayer: boolean;
+  playerCount: number;
   date: string;
 }
 
-export interface HighScores {
-  traditional: HighScoreEntry[];
-  keller: HighScoreEntry[];
-}
+export type GameMode = 'cpu' | 'human';
+export type PlayerCount = 2 | 3 | 4 | 5 | 6 | 7;
 
-const MAX_SCORES_PER_FORMAT = 10;
+const MAX_SCORES_PER_CATEGORY = 10;
 
-export async function getHighScores(): Promise<HighScores> {
+export async function getHighScores(
+  gameFormat: GameFormat,
+  gameMode: GameMode,
+  playerCount: PlayerCount
+): Promise<HighScoreEntry[]> {
   try {
     const { data, error } = await supabase
       .from('high_scores')
       .select('*')
+      .eq('game_format', gameFormat)
+      .eq('is_multiplayer', gameMode === 'human')
+      .eq('player_count', playerCount)
       .order('score', { ascending: false })
-      .limit(MAX_SCORES_PER_FORMAT * 2); // Get enough for both formats
+      .limit(MAX_SCORES_PER_CATEGORY);
 
     if (error) {
       console.error("Failed to load high scores from Supabase:", error);
-      return { traditional: [], keller: [] };
+      return [];
     }
 
-    const traditional = (data || [])
-      .filter((entry: any) => entry.game_format === 'traditional')
-      .slice(0, MAX_SCORES_PER_FORMAT)
-      .map((entry: any) => ({
-        id: entry.id,
-        playerName: entry.player_name,
-        score: entry.score,
-        gameFormat: entry.game_format as GameFormat,
-        date: entry.created_at,
-      }));
-
-    const keller = (data || [])
-      .filter((entry: any) => entry.game_format === 'keller')
-      .slice(0, MAX_SCORES_PER_FORMAT)
-      .map((entry: any) => ({
-        id: entry.id,
-        playerName: entry.player_name,
-        score: entry.score,
-        gameFormat: entry.game_format as GameFormat,
-        date: entry.created_at,
-      }));
-
-    return { traditional, keller };
+    return (data || []).map((entry: any) => ({
+      id: entry.id,
+      playerName: entry.player_name,
+      score: entry.score,
+      gameFormat: entry.game_format as GameFormat,
+      isMultiplayer: entry.is_multiplayer,
+      playerCount: entry.player_count,
+      date: entry.created_at,
+    }));
   } catch (e) {
     console.error("Failed to load high scores:", e);
-    return { traditional: [], keller: [] };
+    return [];
   }
 }
 
 export async function saveHighScore(
   playerName: string,
   score: number,
-  gameFormat: GameFormat
+  gameFormat: GameFormat,
+  isMultiplayer: boolean,
+  playerCount: number
 ): Promise<{ isHighScore: boolean; rank: number | null }> {
   try {
-    // First, get current high scores for this format to check if this qualifies
+    // First, get current high scores for this category to check if this qualifies
     const { data: existingScores, error: fetchError } = await supabase
       .from('high_scores')
       .select('*')
       .eq('game_format', gameFormat)
+      .eq('is_multiplayer', isMultiplayer)
+      .eq('player_count', playerCount)
       .order('score', { ascending: false })
-      .limit(MAX_SCORES_PER_FORMAT);
+      .limit(MAX_SCORES_PER_CATEGORY);
 
     if (fetchError) {
       console.error("Failed to fetch high scores:", fetchError);
@@ -81,7 +78,7 @@ export async function saveHighScore(
 
     // Check if this qualifies as a high score
     const wouldRank =
-      scores.length < MAX_SCORES_PER_FORMAT ||
+      scores.length < MAX_SCORES_PER_CATEGORY ||
       score > scores[scores.length - 1]?.score;
 
     if (!wouldRank) {
@@ -89,15 +86,15 @@ export async function saveHighScore(
     }
 
     // Insert the new score
-    const { data: insertedData, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('high_scores')
       .insert({
         player_name: playerName,
         score: score,
         game_format: gameFormat,
-      })
-      .select()
-      .single();
+        is_multiplayer: isMultiplayer,
+        player_count: playerCount,
+      });
 
     if (insertError) {
       console.error("Failed to save high score:", insertError);

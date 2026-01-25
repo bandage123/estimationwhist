@@ -187,14 +187,13 @@ export default function Game() {
     }
   }, [error, toast]);
 
-  // Log game start for analytics (single player only, not Olympics)
+  // Log game start for analytics (all game types for human players)
   const gameStartLoggedRef = useRef<string | null>(null);
   useEffect(() => {
     if (
       gameState?.phase === "determining_dealer" &&
-      gameState.isSinglePlayer &&
-      !gameState.isOlympics &&
       currentPlayer &&
+      !currentPlayer.isCPU &&
       gameStartLoggedRef.current !== gameState.id
     ) {
       gameStartLoggedRef.current = gameState.id;
@@ -204,17 +203,16 @@ export default function Game() {
         gameState.id
       );
     }
-  }, [gameState?.phase, gameState?.id, gameState?.isSinglePlayer, gameState?.isOlympics, gameState?.gameFormat, currentPlayer]);
+  }, [gameState?.phase, gameState?.id, gameState?.gameFormat, currentPlayer]);
 
-  // Record high score and log game completion when game ends (single player only, not Olympics)
+  // Record high score and log game completion when game ends (all game types for human players)
   const highScoreRecordedRef = useRef<string | null>(null);
   useEffect(() => {
     async function recordGameEnd() {
       if (
         gameState?.phase === "game_end" &&
-        gameState.isSinglePlayer &&
-        !gameState.isOlympics &&
         currentPlayer &&
+        !currentPlayer.isCPU &&
         highScoreRecordedRef.current !== gameState.id
       ) {
         highScoreRecordedRef.current = gameState.id;
@@ -228,6 +226,10 @@ export default function Game() {
           const playerResult = round.playerResults.find(pr => pr.playerId === currentPlayer.id);
           return total + (playerResult?.call || 0);
         }, 0);
+
+        // Determine if this is a multiplayer game (not single player and not Olympics)
+        const isMultiplayer = !gameState.isSinglePlayer && !gameState.isOlympics;
+        const playerCount = gameState.players.length;
 
         // Log game completion for analytics
         logGameCompletion(
@@ -243,12 +245,15 @@ export default function Game() {
         const result = await saveHighScore(
           currentPlayer.name,
           currentPlayer.score,
-          gameState.gameFormat || "traditional"
+          gameState.gameFormat || "traditional",
+          isMultiplayer,
+          playerCount
         );
         if (result.isHighScore && result.rank !== null) {
+          const modeLabel = isMultiplayer ? "Multiplayer" : "vs CPUs";
           toast({
             title: result.rank === 1 ? "New High Score!" : "High Score!",
-            description: `You ranked #${result.rank} in ${gameState.gameFormat === "keller" ? "Keller" : "Traditional"} mode!`,
+            description: `You ranked #${result.rank} in ${gameState.gameFormat === "keller" ? "Keller" : "Traditional"} ${modeLabel} (${playerCount} players)!`,
           });
         }
       }

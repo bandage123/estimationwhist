@@ -1,17 +1,19 @@
 import { useState, useEffect } from "react";
-import { getHighScores, HighScoreEntry, HighScores as HighScoresType } from "@/lib/highScores";
+import { getHighScores, HighScoreEntry, GameMode, PlayerCount } from "@/lib/highScores";
 import { GameFormat } from "@shared/schema";
 import { Trophy, Medal, Award, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface HighScoresProps {
   className?: string;
-  highlightFormat?: GameFormat;
 }
 
-export function HighScores({ className, highlightFormat }: HighScoresProps) {
-  const [activeTab, setActiveTab] = useState<GameFormat>(highlightFormat || "traditional");
-  const [highScores, setHighScores] = useState<HighScoresType>({ traditional: [], keller: [] });
+export function HighScores({ className }: HighScoresProps) {
+  const [gameFormat, setGameFormat] = useState<GameFormat>("traditional");
+  const [gameMode, setGameMode] = useState<GameMode>("cpu");
+  const [playerCount, setPlayerCount] = useState<PlayerCount>(7);
+  const [scores, setScores] = useState<HighScoreEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -22,9 +24,9 @@ export function HighScores({ className, highlightFormat }: HighScoresProps) {
       setLoading(true);
       setError(false);
       try {
-        const scores = await getHighScores();
+        const data = await getHighScores(gameFormat, gameMode, playerCount);
         if (mounted) {
-          setHighScores(scores);
+          setScores(data);
           setLoading(false);
         }
       } catch (e) {
@@ -41,9 +43,7 @@ export function HighScores({ className, highlightFormat }: HighScoresProps) {
     return () => {
       mounted = false;
     };
-  }, []);
-
-  const scores = highScores[activeTab];
+  }, [gameFormat, gameMode, playerCount]);
 
   const getRankIcon = (rank: number) => {
     if (rank === 0) return <Trophy className="w-4 h-4 text-yellow-500" />;
@@ -64,13 +64,13 @@ export function HighScores({ className, highlightFormat }: HighScoresProps) {
         Global High Scores
       </h3>
 
-      {/* Tab buttons */}
-      <div className="flex gap-1 mb-3">
+      {/* Filter: Game Format */}
+      <div className="flex gap-1 mb-2">
         <button
-          onClick={() => setActiveTab("traditional")}
+          onClick={() => setGameFormat("traditional")}
           className={cn(
             "flex-1 px-3 py-1.5 text-sm rounded-md transition-colors",
-            activeTab === "traditional"
+            gameFormat === "traditional"
               ? "bg-primary text-primary-foreground"
               : "bg-muted hover:bg-muted/80"
           )}
@@ -78,16 +78,62 @@ export function HighScores({ className, highlightFormat }: HighScoresProps) {
           Traditional
         </button>
         <button
-          onClick={() => setActiveTab("keller")}
+          onClick={() => setGameFormat("keller")}
           className={cn(
             "flex-1 px-3 py-1.5 text-sm rounded-md transition-colors",
-            activeTab === "keller"
+            gameFormat === "keller"
               ? "bg-primary text-primary-foreground"
               : "bg-muted hover:bg-muted/80"
           )}
         >
           Keller
         </button>
+      </div>
+
+      {/* Filter: Game Mode */}
+      <div className="flex gap-1 mb-2">
+        <button
+          onClick={() => setGameMode("cpu")}
+          className={cn(
+            "flex-1 px-3 py-1.5 text-sm rounded-md transition-colors",
+            gameMode === "cpu"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted hover:bg-muted/80"
+          )}
+        >
+          vs CPUs
+        </button>
+        <button
+          onClick={() => setGameMode("human")}
+          className={cn(
+            "flex-1 px-3 py-1.5 text-sm rounded-md transition-colors",
+            gameMode === "human"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted hover:bg-muted/80"
+          )}
+        >
+          vs Humans
+        </button>
+      </div>
+
+      {/* Filter: Player Count */}
+      <div className="mb-3">
+        <Select
+          value={playerCount.toString()}
+          onValueChange={(v) => setPlayerCount(parseInt(v) as PlayerCount)}
+        >
+          <SelectTrigger className="w-full h-9 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">7 Players</SelectItem>
+            <SelectItem value="6">6 Players</SelectItem>
+            <SelectItem value="5">5 Players</SelectItem>
+            <SelectItem value="4">4 Players</SelectItem>
+            <SelectItem value="3">3 Players</SelectItem>
+            <SelectItem value="2">2 Players</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Scores list */}
