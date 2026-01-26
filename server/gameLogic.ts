@@ -545,8 +545,12 @@ export class Game {
           call = higher;
         } else if (validLower) {
           call = lower;
+        } else {
+          // Neither is valid - this is an impossible situation
+          // (e.g., 1-card round, forbidden=1, No3Z blocks 0)
+          // In this case, No3Z must be broken - call 0
+          call = 0;
         }
-        // If neither is valid (shouldn't happen with valid game state), call stays as is
       }
     }
 
@@ -744,18 +748,41 @@ export class Game {
     // Validate call
     if (call < 0 || call > this.state.cardCount) return false;
 
-    // Check dealer restriction
+    // Calculate dealer restriction
+    let forbidden: number | null = null;
     if (player.isDealer) {
       const totalCalled = this.state.players.reduce((sum, p) => sum + (p.call ?? 0), 0);
-      const forbidden = this.state.cardCount - totalCalled;
+      forbidden = this.state.cardCount - totalCalled;
       if (call === forbidden) return false;
     }
 
     // No3Z rule for Keller format
+    // Exception: if dealer and the only valid call would be 0 (forbidden is the only other option)
     if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates) {
       const kellerState = this.state.kellerPlayerStates[playerId];
       if (kellerState && call === 0 && kellerState.consecutiveZeroCalls >= 2) {
-        return false; // Cannot call 0 three times in a row
+        // Check if this is an impossible situation for the dealer
+        // where they can't call anything else
+        if (player.isDealer && forbidden !== null) {
+          // Dealer can't call 'forbidden'. Check if all other options are blocked by No3Z
+          // On a 1-card round: options are 0 and 1. If forbidden=1, only 0 is available.
+          // Allow the call in this impossible situation.
+          let hasValidAlternative = false;
+          for (let alt = 0; alt <= this.state.cardCount; alt++) {
+            if (alt !== forbidden && alt !== 0) {
+              hasValidAlternative = true;
+              break;
+            }
+          }
+          if (!hasValidAlternative) {
+            // No valid alternative exists - allow breaking No3Z to avoid stuck game
+            // (This can happen on 1-card rounds where forbidden=1 and No3Z blocks 0)
+          } else {
+            return false; // Has alternatives, enforce No3Z
+          }
+        } else {
+          return false; // Cannot call 0 three times in a row
+        }
       }
     }
 
