@@ -14,6 +14,7 @@ export interface SavedGame {
 }
 
 const STORAGE_KEY = "whist_saved_games";
+const AUTO_SAVE_KEY = "whist_auto_save";
 const MAX_SAVES = 5;
 
 export function getSavedGames(): SavedGame[] {
@@ -96,4 +97,54 @@ export function formatSaveDate(dateString: string): string {
   if (diffDays < 7) return `${diffDays}d ago`;
 
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// Auto-save functions for automatic game persistence
+export function autoSaveGame(gameState: GameState, playerId: string): void {
+  try {
+    // Only auto-save single player and Olympics games
+    if (!gameState.isSinglePlayer && !gameState.isOlympics) return;
+
+    // Don't auto-save if game is over
+    if (gameState.phase === "game_end") return;
+
+    // Don't auto-save lobby phase
+    if (gameState.phase === "lobby") return;
+
+    const player = gameState.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const autoSave: SavedGame = {
+      id: "auto-save",
+      savedAt: new Date().toISOString(),
+      playerName: player.name,
+      gameFormat: gameState.gameFormat || "traditional",
+      currentRound: gameState.currentRound,
+      playerScore: player.score,
+      isOlympics: gameState.isOlympics || false,
+      olympicsPhase: gameState.olympicsState?.currentPhase,
+      groupNumber: gameState.olympicsState?.currentGroupIndex !== undefined
+        ? gameState.olympicsState.currentGroupIndex + 1
+        : undefined,
+      gameState,
+    };
+
+    localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(autoSave));
+  } catch (e) {
+    console.error("Failed to auto-save game:", e);
+  }
+}
+
+export function getAutoSavedGame(): SavedGame | null {
+  try {
+    const data = localStorage.getItem(AUTO_SAVE_KEY);
+    if (!data) return null;
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+
+export function clearAutoSave(): void {
+  localStorage.removeItem(AUTO_SAVE_KEY);
 }

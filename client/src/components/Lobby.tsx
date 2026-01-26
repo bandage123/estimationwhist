@@ -5,11 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal, Save, Trash2 } from "lucide-react";
+import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal, Save, Trash2, Play, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Player, GameFormat, GameState } from "@shared/schema";
 import { HighScores } from "./HighScores";
-import { getSavedGames, deleteSavedGame, formatSaveDate, SavedGame } from "@/lib/savedGames";
+import { getSavedGames, deleteSavedGame, formatSaveDate, SavedGame, getAutoSavedGame, clearAutoSave } from "@/lib/savedGames";
 
 // Inline a few countries and adjectives for the selector
 const COUNTRIES_SELECT = [
@@ -49,13 +49,32 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
   const [gameFormat, setGameFormat] = useState<GameFormat>("traditional");
   const [selectedTournament, setSelectedTournament] = useState("");
   const [savedGames, setSavedGames] = useState<SavedGame[]>([]);
+  const [autoSavedGame, setAutoSavedGame] = useState<SavedGame | null>(null);
 
-  // Load saved games on mount and when mode changes to 'saved'
+  // Load saved games and auto-saved game on mount
   useEffect(() => {
     if (mode === "saved" || mode === null) {
       setSavedGames(getSavedGames());
     }
+    // Check for auto-saved game
+    const autoSave = getAutoSavedGame();
+    setAutoSavedGame(autoSave);
+    // Pre-fill player name from auto-save if available
+    if (autoSave && !playerName) {
+      setPlayerName(autoSave.playerName);
+    }
   }, [mode]);
+
+  const handleDismissAutoSave = () => {
+    clearAutoSave();
+    setAutoSavedGame(null);
+  };
+
+  const handleResumeAutoSave = () => {
+    if (autoSavedGame) {
+      onRestoreSavedGame(autoSavedGame.gameState, autoSavedGame.id);
+    }
+  };
 
   const handleDeleteSave = (id: string) => {
     deleteSavedGame(id);
@@ -108,6 +127,40 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Auto-saved game resume banner */}
+          {autoSavedGame && (
+            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                  <Play className="w-4 h-4" />
+                  <span className="text-sm font-medium">Game in progress</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={handleDismissAutoSave}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {autoSavedGame.isOlympics ? "World Cup" : autoSavedGame.gameFormat === "keller" ? "Keller" : "Traditional"} •
+                Round {autoSavedGame.currentRound} •
+                Score: {autoSavedGame.playerScore} •
+                {formatSaveDate(autoSavedGame.savedAt)}
+              </p>
+              <Button
+                className="w-full gap-2"
+                onClick={handleResumeAutoSave}
+                disabled={isConnecting}
+              >
+                {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                Resume Game
+              </Button>
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Your Name</label>
             <Input

@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check, Save } from "lucide-react";
 import { saveHighScore } from "@/lib/highScores";
 import { logGameStart, logGameCompletion } from "@/lib/analytics";
-import { saveGame } from "@/lib/savedGames";
+import { saveGame, autoSaveGame, clearAutoSave } from "@/lib/savedGames";
 
 export default function Game() {
   const {
@@ -233,6 +233,19 @@ export default function Game() {
     }
   }, [gameState?.phase, gameState?.id, gameState?.gameFormat, currentPlayer]);
 
+  // Auto-save game state for single player and Olympics games
+  useEffect(() => {
+    if (gameState && playerId && (gameState.isSinglePlayer || gameState.isOlympics)) {
+      // Auto-save on every state change (debounced by React's batching)
+      autoSaveGame(gameState, playerId);
+
+      // Clear auto-save when game ends
+      if (gameState.phase === "game_end") {
+        clearAutoSave();
+      }
+    }
+  }, [gameState, playerId]);
+
   // Record high score and log game completion when game ends (all game types for human players)
   const highScoreRecordedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -293,6 +306,8 @@ export default function Game() {
     // Clear session storage to prevent reconnect attempts to old game
     sessionStorage.removeItem('whist_player_id');
     sessionStorage.removeItem('whist_game_id');
+    // Clear auto-save since user explicitly left the game
+    clearAutoSave();
     window.location.reload();
   };
 
