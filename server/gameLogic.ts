@@ -180,7 +180,7 @@ export class Game {
     return true;
   }
 
-  private determineDealerRound(): void {
+  private determineDealerRound(tiedPlayerIndices?: number[]): void {
     // Ensure we're in the right phase
     if (this.state.phase !== "determining_dealer") {
       return;
@@ -189,31 +189,38 @@ export class Game {
     const deck = shuffleDeck(createDeck());
     this.state.dealerCards = [];
 
-    // Deal one card to each player
-    for (let i = 0; i < this.state.players.length; i++) {
+    // If we have tied players from a previous round, only deal to them
+    // Otherwise deal to all players
+    const playersToCheck = tiedPlayerIndices || this.state.players.map((_, i) => i);
+
+    // Deal one card to each player being checked
+    for (let i = 0; i < playersToCheck.length; i++) {
+      const playerIndex = playersToCheck[i];
       this.state.dealerCards.push({
-        playerId: this.state.players[i].id,
+        playerId: this.state.players[playerIndex].id,
         card: deck[i],
       });
     }
 
-    // Find highest card(s)
+    // Find highest card(s) among the dealt cards
     let highestValue = 0;
-    let highestPlayers: number[] = [];
+    let highestPlayerIndices: number[] = [];
 
     for (let i = 0; i < this.state.dealerCards.length; i++) {
       const value = getRankValue(this.state.dealerCards[i].card.rank);
+      // Map back to original player index
+      const originalPlayerIndex = playersToCheck[i];
       if (value > highestValue) {
         highestValue = value;
-        highestPlayers = [i];
+        highestPlayerIndices = [originalPlayerIndex];
       } else if (value === highestValue) {
-        highestPlayers.push(i);
+        highestPlayerIndices.push(originalPlayerIndex);
       }
     }
 
-    if (highestPlayers.length === 1) {
+    if (highestPlayerIndices.length === 1) {
       // We have a winner
-      this.state.dealerIndex = highestPlayers[0];
+      this.state.dealerIndex = highestPlayerIndices[0];
       this.state.players.forEach((p, i) => {
         p.isDealer = i === this.state.dealerIndex;
       });
@@ -231,14 +238,14 @@ export class Game {
         }
       }, 3000 * this.speedMultiplier);
     } else {
-      // Tie - notify state update so clients see the tied cards
+      // Tie among highest cards - notify state update so clients see the tied cards
       this.notifyStateUpdate();
 
-      // Deal again after delay
+      // Deal again after delay, but only to the tied players
       setTimeout(() => {
         // Re-check phase in case game was reset/cancelled
         if (this.state.phase === "determining_dealer") {
-          this.determineDealerRound();
+          this.determineDealerRound(highestPlayerIndices);
         }
       }, 2000 * this.speedMultiplier);
     }
@@ -2190,6 +2197,40 @@ class GameManager {
         const finalsIdx = game.state.olympicsState.finalsPlayerIds.indexOf(oldPlayerId);
         if (finalsIdx >= 0) {
           game.state.olympicsState.finalsPlayerIds[finalsIdx] = newPlayerId;
+        }
+      }
+
+      // Update Halo minigame state if the human was playing
+      if (game.state.haloMinigame) {
+        if (game.state.haloMinigame.currentPlayerId === oldPlayerId) {
+          game.state.haloMinigame.currentPlayerId = newPlayerId;
+        }
+        // Update lastResult if it references the old player
+        if (game.state.haloMinigame.lastResult?.playerId === oldPlayerId) {
+          game.state.haloMinigame.lastResult.playerId = newPlayerId;
+        }
+        // Update player results
+        for (const result of game.state.haloMinigame.playerResults) {
+          if (result.playerId === oldPlayerId) {
+            result.playerId = newPlayerId;
+          }
+        }
+      }
+
+      // Update Brucie Bonus state if the human was playing
+      if (game.state.brucieBonus) {
+        if (game.state.brucieBonus.currentPlayerId === oldPlayerId) {
+          game.state.brucieBonus.currentPlayerId = newPlayerId;
+        }
+        // Update lastResult if it references the old player
+        if (game.state.brucieBonus.lastResult?.playerId === oldPlayerId) {
+          game.state.brucieBonus.lastResult.playerId = newPlayerId;
+        }
+        // Update player multipliers
+        for (const result of game.state.brucieBonus.playerMultipliers) {
+          if (result.playerId === oldPlayerId) {
+            result.playerId = newPlayerId;
+          }
         }
       }
     }

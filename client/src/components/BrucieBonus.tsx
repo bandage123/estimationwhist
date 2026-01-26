@@ -140,8 +140,8 @@ export function BrucieBonus({
   // Get sorted multipliers for final summary (highest first)
   const sortedMultipliers = [...brucieState.playerMultipliers].sort((a, b) => b.multiplier - a.multiplier);
 
-  // Check if showing result
-  const showingResult = brucieState.waitingForContinue && brucieState.lastResult;
+  // Check if showing result - explicit boolean check
+  const showingResult = brucieState.waitingForContinue === true && brucieState.lastResult != null;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-green-900/20 to-background">
@@ -157,8 +157,8 @@ export function BrucieBonus({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Showing Result of Last Action */}
-          {showingResult && brucieState.lastResult ? (
-            <BrucieResultScreen result={brucieState.lastResult} onAcknowledge={onAcknowledge} />
+          {showingResult ? (
+            <BrucieResultScreen result={brucieState.lastResult!} onAcknowledge={onAcknowledge} />
           ) : brucieState.isComplete ? (
             <div className="space-y-4">
               <div className="text-center">

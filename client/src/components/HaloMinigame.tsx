@@ -129,8 +129,8 @@ export function HaloMinigame({
   const sortedResults = [...haloState.playerResults].sort((a, b) => b.score - a.score);
   const totalHaloPoints = haloState.playerResults.reduce((sum, r) => sum + r.score, 0);
 
-  // Check if showing result
-  const showingResult = haloState.waitingForContinue && haloState.lastResult;
+  // Check if showing result - explicit boolean check
+  const showingResult = haloState.waitingForContinue === true && haloState.lastResult != null;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-purple-900/20 to-background">
@@ -146,8 +146,8 @@ export function HaloMinigame({
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Showing Result of Last Action */}
-          {showingResult && haloState.lastResult ? (
-            <ResultScreen result={haloState.lastResult} onAcknowledge={onAcknowledge} />
+          {showingResult ? (
+            <ResultScreen result={haloState.lastResult!} onAcknowledge={onAcknowledge} />
           ) : haloState.isComplete ? (
             <div className="space-y-4">
               <div className="text-center">
