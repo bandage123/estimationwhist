@@ -53,6 +53,7 @@ export default function Game() {
     skipBrucie,
     brucieContinue,
     restoreSavedGame,
+    minigameAcknowledge,
   } = useWebSocket();
 
   const { toast } = useToast();
@@ -541,6 +542,7 @@ export default function Game() {
           onGuess={haloGuess}
           onBank={haloBank}
           onContinue={haloContinue}
+          onAcknowledge={minigameAcknowledge}
         />
       </div>
     );
@@ -574,6 +576,7 @@ export default function Game() {
           onBank={brucieBank}
           onSkip={skipBrucie}
           onContinue={brucieContinue}
+          onAcknowledge={minigameAcknowledge}
         />
       </div>
     );

@@ -85,6 +85,18 @@ export interface KellerPlayerState {
   brucieMultiplier: number;           // Default 2, modified by Brucie Bonus (1-3)
 }
 
+// Result of a guess in Halo/Brucie minigames
+export interface MinigameGuessResult {
+  playerId: string;
+  playerName: string;
+  guess: "higher" | "lower" | "same" | "bank" | "skip";
+  previousCard: Card;
+  newCard: Card | null;  // null if banked/skipped
+  wasCorrect: boolean | null;  // null if banked/skipped
+  correctGuesses: number;  // Total correct at this point
+  finalScore: number | null;  // Set when player finishes (busted, banked, or maxed)
+}
+
 // Halo Minigame state (after round 7)
 export interface HaloMinigameState {
   currentPlayerId: string | null;     // Which player is currently playing
@@ -92,6 +104,8 @@ export interface HaloMinigameState {
   correctGuesses: number;             // 0-7
   isComplete: boolean;                // All players finished
   playerResults: { playerId: string; score: number }[];
+  lastResult: MinigameGuessResult | null;  // Result of last action, shown until continue
+  waitingForContinue: boolean;        // Waiting for user to click continue
 }
 
 // Brucie Bonus state (after round 12)
@@ -101,6 +115,8 @@ export interface BrucieBonusState {
   correctGuesses: number;             // 0-3 max
   isComplete: boolean;
   playerMultipliers: { playerId: string; multiplier: number }[];
+  lastResult: MinigameGuessResult | null;  // Result of last action
+  waitingForContinue: boolean;        // Waiting for user to click continue
 }
 
 export interface GroupResult {
@@ -193,7 +209,8 @@ export type ClientMessage =
   | { type: "brucie_bank" }
   | { type: "skip_brucie" }
   | { type: "brucie_continue" }
-  | { type: "restore_saved_game"; savedState: GameState };
+  | { type: "restore_saved_game"; savedState: GameState }
+  | { type: "minigame_acknowledge" };  // Acknowledge seeing result, continue to next action
 
 export type ServerMessage =
   | { type: "game_created"; gameId: string; playerId: string }

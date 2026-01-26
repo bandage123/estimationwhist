@@ -34,6 +34,7 @@ interface UseWebSocketReturn {
   skipBrucie: () => void;
   brucieContinue: () => void;
   restoreSavedGame: (savedState: GameState, saveId: string) => void;
+  minigameAcknowledge: () => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -238,6 +239,10 @@ export function useWebSocket(): UseWebSocketReturn {
     deleteSavedGame(saveId);
   }, [sendMessage]);
 
+  const minigameAcknowledge = useCallback(() => {
+    sendMessage({ type: "minigame_acknowledge" });
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -270,5 +275,6 @@ export function useWebSocket(): UseWebSocketReturn {
     skipBrucie,
     brucieContinue,
     restoreSavedGame,
+    minigameAcknowledge,
   };
 }

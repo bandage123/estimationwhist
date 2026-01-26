@@ -1072,6 +1072,8 @@ export class Game {
       correctGuesses: 0,
       isComplete: false,
       playerResults: [],
+      lastResult: null,
+      waitingForContinue: false,
     };
 
     this.state.phase = "halo_minigame";
@@ -1091,9 +1093,13 @@ export class Game {
     if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
     if (this.state.haloMinigame.currentPlayerId !== playerId) return false;
     if (!this.state.haloMinigame.currentCard) return false;
+    if (this.state.haloMinigame.waitingForContinue) return false;
 
-    const currentCard = this.state.haloMinigame.currentCard;
-    const currentValue = getRankValue(currentCard.rank);
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    const previousCard = this.state.haloMinigame.currentCard;
+    const currentValue = getRankValue(previousCard.rank);
     const nextCard = this.drawRandomCard();
     const nextValue = getRankValue(nextCard.rank);
 
@@ -1104,33 +1110,84 @@ export class Game {
 
     if (correct) {
       this.state.haloMinigame.correctGuesses++;
-      this.state.haloMinigame.currentCard = nextCard;
+      const newCorrectGuesses = this.state.haloMinigame.correctGuesses;
 
-      // Max 7 correct guesses
-      if (this.state.haloMinigame.correctGuesses >= 7) {
-        this.haloBank(playerId);
-        return true;
+      // Check if max reached
+      if (newCorrectGuesses >= 7) {
+        const score = 49; // 7^2
+        // Set result showing they maxed out
+        this.state.haloMinigame.lastResult = {
+          playerId,
+          playerName: player.name,
+          guess,
+          previousCard,
+          newCard: nextCard,
+          wasCorrect: true,
+          correctGuesses: newCorrectGuesses,
+          finalScore: score,
+        };
+        this.state.haloMinigame.waitingForContinue = true;
+        this.state.haloMinigame.currentCard = nextCard;
+        // Don't complete yet - wait for acknowledge
+      } else {
+        // Correct but not maxed - show result and wait
+        this.state.haloMinigame.lastResult = {
+          playerId,
+          playerName: player.name,
+          guess,
+          previousCard,
+          newCard: nextCard,
+          wasCorrect: true,
+          correctGuesses: newCorrectGuesses,
+          finalScore: null,  // Still playing
+        };
+        this.state.haloMinigame.waitingForContinue = true;
+        this.state.haloMinigame.currentCard = nextCard;
       }
-
-      this.notifyStateUpdate();
-
-      // Continue CPU processing if it's a CPU's turn
-      this.processHaloCPU();
-
-      return true;
     } else {
-      // Wrong guess - score is 0, move to next player
-      this.completeHaloForPlayer(playerId, 0);
-      return true;
+      // Wrong guess - show result, player busted
+      this.state.haloMinigame.lastResult = {
+        playerId,
+        playerName: player.name,
+        guess,
+        previousCard,
+        newCard: nextCard,
+        wasCorrect: false,
+        correctGuesses: this.state.haloMinigame.correctGuesses,
+        finalScore: 0,
+      };
+      this.state.haloMinigame.waitingForContinue = true;
     }
+
+    this.notifyStateUpdate();
+    return true;
   }
 
   haloBank(playerId: string): boolean {
     if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
     if (this.state.haloMinigame.currentPlayerId !== playerId) return false;
+    if (this.state.haloMinigame.waitingForContinue) return false;
 
-    const score = this.state.haloMinigame.correctGuesses ** 2; // score = correct^2
-    this.completeHaloForPlayer(playerId, score);
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    const score = this.state.haloMinigame.correctGuesses ** 2;
+    const currentCard = this.state.haloMinigame.currentCard!;
+
+    // Set result showing they banked
+    this.state.haloMinigame.lastResult = {
+      playerId,
+      playerName: player.name,
+      guess: "bank",
+      previousCard: currentCard,
+      newCard: null,
+      wasCorrect: null,
+      correctGuesses: this.state.haloMinigame.correctGuesses,
+      finalScore: score,
+    };
+    this.state.haloMinigame.waitingForContinue = true;
+
+    this.notifyStateUpdate();
     return true;
   }
 
@@ -1141,6 +1198,30 @@ export class Game {
     // Clear Halo state and proceed to next round
     this.state.haloMinigame = undefined;
     this.proceedToNextRound();
+    return true;
+  }
+
+  // Called when user acknowledges seeing a result
+  haloAcknowledge(): boolean {
+    if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
+    if (!this.state.haloMinigame.waitingForContinue || !this.state.haloMinigame.lastResult) return false;
+
+    const result = this.state.haloMinigame.lastResult;
+    const playerId = result.playerId;
+
+    // Clear the result
+    this.state.haloMinigame.lastResult = null;
+    this.state.haloMinigame.waitingForContinue = false;
+
+    // If player finished (has finalScore), complete them and move to next
+    if (result.finalScore !== null) {
+      this.completeHaloForPlayer(playerId, result.finalScore);
+    } else {
+      // Player continues - if CPU, trigger next guess
+      this.notifyStateUpdate();
+      this.processHaloCPU();
+    }
+
     return true;
   }
 
@@ -1211,7 +1292,8 @@ export class Game {
       this.haloGuess(currentPlayer.id, guess);
     };
 
-    setTimeout(makeGuess, (800 + Math.random() * 400) * this.speedMultiplier);
+    // Minigames always use 1x speed for dramatic effect
+    setTimeout(makeGuess, 800 + Math.random() * 400);
   }
 
   // ==================== BRUCIE BONUS (Keller format) ====================
@@ -1226,6 +1308,8 @@ export class Game {
       correctGuesses: 0,
       isComplete: false,
       playerMultipliers: [],
+      lastResult: null,
+      waitingForContinue: false,
     };
 
     this.state.phase = "brucie_bonus";
@@ -1239,9 +1323,13 @@ export class Game {
     if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
     if (this.state.brucieBonus.currentPlayerId !== playerId) return false;
     if (!this.state.brucieBonus.currentCard) return false;
+    if (this.state.brucieBonus.waitingForContinue) return false;
 
-    const currentCard = this.state.brucieBonus.currentCard;
-    const currentValue = getRankValue(currentCard.rank);
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    const previousCard = this.state.brucieBonus.currentCard;
+    const currentValue = getRankValue(previousCard.rank);
     const nextCard = this.drawRandomCard();
     const nextValue = getRankValue(nextCard.rank);
 
@@ -1252,35 +1340,82 @@ export class Game {
 
     if (correct) {
       this.state.brucieBonus.correctGuesses++;
+      const newCorrectGuesses = this.state.brucieBonus.correctGuesses;
       this.state.brucieBonus.currentCard = nextCard;
 
       // Max 3 correct guesses = 3x multiplier
-      if (this.state.brucieBonus.correctGuesses >= 3) {
-        this.completeBrucieForPlayer(playerId, 3);
-        return true;
+      if (newCorrectGuesses >= 3) {
+        // Set result showing they maxed out
+        this.state.brucieBonus.lastResult = {
+          playerId,
+          playerName: player.name,
+          guess,
+          previousCard,
+          newCard: nextCard,
+          wasCorrect: true,
+          correctGuesses: newCorrectGuesses,
+          finalScore: 3, // 3x multiplier
+        };
+        this.state.brucieBonus.waitingForContinue = true;
+      } else {
+        // Correct but not maxed - show result and wait
+        this.state.brucieBonus.lastResult = {
+          playerId,
+          playerName: player.name,
+          guess,
+          previousCard,
+          newCard: nextCard,
+          wasCorrect: true,
+          correctGuesses: newCorrectGuesses,
+          finalScore: null, // Still playing
+        };
+        this.state.brucieBonus.waitingForContinue = true;
       }
-
-      this.notifyStateUpdate();
-
-      // Continue CPU processing if it's a CPU's turn
-      this.processBrucieCPU();
-
-      return true;
     } else {
-      // Wrong guess - multiplier is 1x
-      this.completeBrucieForPlayer(playerId, 1);
-      return true;
+      // Wrong guess - show result, multiplier is 1x
+      this.state.brucieBonus.lastResult = {
+        playerId,
+        playerName: player.name,
+        guess,
+        previousCard,
+        newCard: nextCard,
+        wasCorrect: false,
+        correctGuesses: this.state.brucieBonus.correctGuesses,
+        finalScore: 1, // 1x multiplier (busted)
+      };
+      this.state.brucieBonus.waitingForContinue = true;
     }
+
+    this.notifyStateUpdate();
+    return true;
   }
 
   brucieBank(playerId: string): boolean {
     if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
     if (this.state.brucieBonus.currentPlayerId !== playerId) return false;
+    if (this.state.brucieBonus.waitingForContinue) return false;
 
-    // Multiplier: 0 correct = 2x (default), 1 = 2x, 2 = 2x, 3 = 3x (but they auto-complete at 3)
-    // Actually banking gives current correct + 2 (min 2, max 3)
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    // Multiplier: banking gives current correct + 2 (min 2, max 3)
     const multiplier = Math.min(this.state.brucieBonus.correctGuesses + 2, 3);
-    this.completeBrucieForPlayer(playerId, multiplier);
+    const currentCard = this.state.brucieBonus.currentCard!;
+
+    // Set result showing they banked
+    this.state.brucieBonus.lastResult = {
+      playerId,
+      playerName: player.name,
+      guess: "bank",
+      previousCard: currentCard,
+      newCard: null,
+      wasCorrect: null,
+      correctGuesses: this.state.brucieBonus.correctGuesses,
+      finalScore: multiplier,
+    };
+    this.state.brucieBonus.waitingForContinue = true;
+
+    this.notifyStateUpdate();
     return true;
   }
 
@@ -1288,9 +1423,27 @@ export class Game {
     if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
     if (this.state.brucieBonus.currentPlayerId !== playerId) return false;
     if (this.state.brucieBonus.correctGuesses > 0) return false; // Can only skip before playing
+    if (this.state.brucieBonus.waitingForContinue) return false;
 
-    // Skip gives default 2x multiplier
-    this.completeBrucieForPlayer(playerId, 2);
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    const currentCard = this.state.brucieBonus.currentCard!;
+
+    // Set result showing they skipped
+    this.state.brucieBonus.lastResult = {
+      playerId,
+      playerName: player.name,
+      guess: "skip",
+      previousCard: currentCard,
+      newCard: null,
+      wasCorrect: null,
+      correctGuesses: 0,
+      finalScore: 2, // Skip gives 2x
+    };
+    this.state.brucieBonus.waitingForContinue = true;
+
+    this.notifyStateUpdate();
     return true;
   }
 
@@ -1336,6 +1489,30 @@ export class Game {
     return true;
   }
 
+  // Called when user acknowledges seeing a Brucie result
+  brucieAcknowledge(): boolean {
+    if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
+    if (!this.state.brucieBonus.waitingForContinue || !this.state.brucieBonus.lastResult) return false;
+
+    const result = this.state.brucieBonus.lastResult;
+    const playerId = result.playerId;
+
+    // Clear the result
+    this.state.brucieBonus.lastResult = null;
+    this.state.brucieBonus.waitingForContinue = false;
+
+    // If player finished (has finalScore), complete them and move to next
+    if (result.finalScore !== null) {
+      this.completeBrucieForPlayer(playerId, result.finalScore);
+    } else {
+      // Player continues - if CPU, trigger next guess
+      this.notifyStateUpdate();
+      this.processBrucieCPU();
+    }
+
+    return true;
+  }
+
   private processBrucieCPU(): void {
     if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return;
 
@@ -1361,7 +1538,8 @@ export class Game {
       this.brucieGuess(currentPlayer.id, guess);
     };
 
-    setTimeout(makeGuess, (800 + Math.random() * 400) * this.speedMultiplier);
+    // Minigames always use 1x speed for dramatic effect
+    setTimeout(makeGuess, 800 + Math.random() * 400);
   }
 
   // Start the Olympics qualifying round - human plays Group 1, others simulated

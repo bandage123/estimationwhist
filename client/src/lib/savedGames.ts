@@ -41,9 +41,9 @@ export function saveGame(gameState: GameState, playerId: string): SavedGame {
     currentRound: gameState.currentRound,
     playerScore: player.score,
     isOlympics: gameState.isOlympics || false,
-    olympicsPhase: gameState.olympicsTournament?.currentPhase,
-    groupNumber: gameState.olympicsTournament?.currentGroupIndex !== undefined
-      ? gameState.olympicsTournament.currentGroupIndex + 1
+    olympicsPhase: gameState.olympicsState?.currentPhase,
+    groupNumber: gameState.olympicsState?.currentGroupIndex !== undefined
+      ? gameState.olympicsState.currentGroupIndex + 1
       : undefined,
     gameState,
   };

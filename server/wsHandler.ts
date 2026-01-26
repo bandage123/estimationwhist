@@ -525,6 +525,24 @@ export function setupWebSocket(server: Server): void {
             }
             break;
           }
+
+          case "minigame_acknowledge": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            // Call appropriate acknowledge based on current phase
+            if (game.state.phase === "halo_minigame") {
+              game.haloAcknowledge();
+            } else if (game.state.phase === "brucie_bonus") {
+              game.brucieAcknowledge();
+            }
+
+            broadcastToGame(game);
+            break;
+          }
         }
       } catch (error) {
         console.error("WebSocket message error:", error);
