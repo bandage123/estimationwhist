@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal, Save, Trash2, Play, X } from "lucide-react";
+import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal, Save, Trash2, Play, X, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Player, GameFormat, GameState } from "@shared/schema";
 import { HighScores } from "./HighScores";
@@ -636,6 +636,28 @@ export function LobbyWaiting({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const shareGameCode = async () => {
+    const shareData = {
+      title: "Join my Estimation Whist game!",
+      text: `Join my game with code: ${gameId}`,
+      url: window.location.href,
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        // User cancelled or share failed - fall back to copy
+        if ((err as Error).name !== "AbortError") {
+          copyGameCode();
+        }
+      }
+    } else {
+      // Web Share API not supported - fall back to copy
+      copyGameCode();
+    }
+  };
+
   const canStart = players.length >= minPlayers;
   const humanPlayers = players.filter(p => !p.isCPU);
   const cpuPlayers = players.filter(p => p.isCPU);
@@ -693,6 +715,14 @@ export function LobbyWaiting({
                   ) : (
                     <Copy className="w-4 h-4" />
                   )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={shareGameCode}
+                  data-testid="button-share-code"
+                >
+                  <Share2 className="w-4 h-4" />
                 </Button>
               </div>
 

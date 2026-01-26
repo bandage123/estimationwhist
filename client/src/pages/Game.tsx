@@ -11,7 +11,8 @@ import { RoundEndDisplay } from "@/components/RoundEndDisplay";
 import { KellerStatusBar } from "@/components/KellerStatusBar";
 import { HaloMinigame } from "@/components/HaloMinigame";
 import { BrucieBonus } from "@/components/BrucieBonus";
-import { Card, Suit, Player, SpeedSetting } from "@shared/schema";
+import { RulesDialog } from "@/components/RulesDialog";
+import { Card, Suit, Player, SpeedSetting, GameFormat } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,19 @@ export default function Game() {
   const [swapMode, setSwapMode] = useState(false);
   const [cardToSwap, setCardToSwap] = useState<Card | null>(null); // Card selected for swap, awaiting confirmation
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  // Track game settings for "Play Again"
+  const lastGameSettingsRef = useRef<{
+    playerName: string;
+    gameFormat: GameFormat;
+    isSinglePlayer: boolean;
+    cpuCount: number;
+    isOlympics: boolean;
+    countryCode?: string;
+  } | null>(null);
+
+  // Track notification permission
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | null>(null);
 
   const handleSaveGame = () => {
     if (!gameState || !playerId) return;
@@ -338,6 +352,80 @@ export default function Game() {
     // Clear auto-save since user explicitly left the game
     clearAutoSave();
     window.location.reload();
+  };
+
+  // Save game settings when a game starts (for Play Again feature)
+  useEffect(() => {
+    if (gameState && currentPlayer && gameState.phase === "determining_dealer") {
+      const cpuPlayers = gameState.players.filter(p => p.isCPU).length;
+      lastGameSettingsRef.current = {
+        playerName: currentPlayer.name,
+        gameFormat: gameState.gameFormat || "traditional",
+        isSinglePlayer: gameState.isSinglePlayer || false,
+        cpuCount: cpuPlayers,
+        isOlympics: gameState.isOlympics || false,
+        countryCode: currentPlayer.countryCode,
+      };
+    }
+  }, [gameState?.phase, gameState?.gameFormat, gameState?.isSinglePlayer, gameState?.isOlympics, gameState?.players, currentPlayer]);
+
+  // Request notification permission for multiplayer games
+  useEffect(() => {
+    if (gameState && !gameState.isSinglePlayer && !gameState.isOlympics && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then(permission => {
+          setNotificationPermission(permission);
+        });
+      }
+    }
+  }, [gameState?.isSinglePlayer, gameState?.isOlympics]);
+
+  // Send browser notification when it's player's turn in multiplayer
+  const lastNotifiedTurnRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      gameState &&
+      !gameState.isSinglePlayer &&
+      !gameState.isOlympics &&
+      isMyTurn &&
+      (gameState.phase === "calling" || gameState.phase === "playing") &&
+      notificationPermission === "granted" &&
+      document.hidden // Only notify if tab is not visible
+    ) {
+      const turnKey = `${gameState.id}-${gameState.currentRound}-${gameState.phase}-${gameState.currentPlayerIndex}`;
+      if (lastNotifiedTurnRef.current !== turnKey) {
+        lastNotifiedTurnRef.current = turnKey;
+        new Notification("Estimation Whist", {
+          body: gameState.phase === "calling" ? "It's your turn to call!" : "It's your turn to play!",
+          icon: "/favicon.ico",
+          tag: "turn-notification",
+        });
+      }
+    }
+  }, [gameState, isMyTurn, notificationPermission]);
+
+  // Handle Play Again
+  const handlePlayAgain = () => {
+    const settings = lastGameSettingsRef.current;
+    if (!settings) {
+      handleReturnToMenu();
+      return;
+    }
+
+    // Clear session storage for fresh game
+    sessionStorage.removeItem('whist_player_id');
+    sessionStorage.removeItem('whist_game_id');
+    clearAutoSave();
+
+    if (settings.isOlympics) {
+      createOlympicsGame(settings.playerName, settings.countryCode, settings.gameFormat);
+    } else if (settings.isSinglePlayer) {
+      createSinglePlayerGame(settings.playerName, settings.cpuCount, settings.gameFormat);
+    } else {
+      // For multiplayer, just go back to menu since we can't recreate the same lobby
+      handleReturnToMenu();
+    }
   };
 
   // Not in a game yet - show lobby
@@ -840,6 +928,7 @@ export default function Game() {
               players={gameState.players}
               roundHistory={gameState.roundHistory}
               onReturnToMenu={handleReturnToMenu}
+              onPlayAgain={(gameState.isSinglePlayer || gameState.isOlympics) ? handlePlayAgain : undefined}
             />
           </div>
         </div>
@@ -898,8 +987,11 @@ export default function Game() {
               </div>
             </>
           )}
-          <div className="text-sm text-muted-foreground">
-            Round {gameState.currentRound}/13
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-muted-foreground">
+              Round {gameState.currentRound}/13
+            </div>
+            <RulesDialog gameFormat={gameState.gameFormat || "traditional"} />
           </div>
         </div>
       </div>

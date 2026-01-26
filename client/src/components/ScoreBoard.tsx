@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Trophy, Crown, Target, X, Home } from "lucide-react";
+import { Trophy, Crown, Target, X, Home, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ScoreBoardProps {
@@ -187,9 +187,10 @@ interface FinalScoreBoardProps {
   players: Player[];
   roundHistory: RoundResult[];
   onReturnToMenu?: () => void;
+  onPlayAgain?: () => void;
 }
 
-export function FinalScoreBoard({ players, roundHistory, onReturnToMenu }: FinalScoreBoardProps) {
+export function FinalScoreBoard({ players, roundHistory, onReturnToMenu, onPlayAgain }: FinalScoreBoardProps) {
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const winner = sortedPlayers[0];
 
@@ -319,17 +320,31 @@ export function FinalScoreBoard({ players, roundHistory, onReturnToMenu }: Final
         </CardContent>
       </Card>
 
-      {onReturnToMenu && (
-        <div className="flex justify-center pt-2">
-          <Button
-            onClick={onReturnToMenu}
-            size="lg"
-            className="gap-2"
-            data-testid="button-return-menu"
-          >
-            <Home className="w-4 h-4" />
-            Return to Main Menu
-          </Button>
+      {(onPlayAgain || onReturnToMenu) && (
+        <div className="flex justify-center gap-3 pt-2">
+          {onPlayAgain && (
+            <Button
+              onClick={onPlayAgain}
+              size="lg"
+              className="gap-2"
+              data-testid="button-play-again"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Play Again
+            </Button>
+          )}
+          {onReturnToMenu && (
+            <Button
+              onClick={onReturnToMenu}
+              size="lg"
+              variant={onPlayAgain ? "outline" : "default"}
+              className="gap-2"
+              data-testid="button-return-menu"
+            >
+              <Home className="w-4 h-4" />
+              Main Menu
+            </Button>
+          )}
         </div>
       )}
     </div>
