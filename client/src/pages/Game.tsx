@@ -977,7 +977,7 @@ export default function Game() {
                     cardCount={gameState.cardCount}
                     currentCalls={gameState.players
                       .filter((p) => p.call !== null)
-                      .map((p) => ({ playerName: p.name, call: p.call! }))}
+                      .map((p) => ({ playerName: p.name, call: p.call!, isBlindCalling: p.isBlindCalling }))}
                     isDealer={currentPlayer.isDealer}
                     onMakeCall={makeCall}
                     playerName={currentPlayer.name}
@@ -1013,10 +1013,17 @@ export default function Game() {
                     </p>
                     <div className="mt-2 text-sm text-muted-foreground">
                       Calls so far:{" "}
-                      {gameState.players
-                        .filter((p) => p.call !== null)
-                        .map((p) => `${p.name}: ${p.call}`)
-                        .join(", ") || "None yet"}
+                      {gameState.players.filter((p) => p.call !== null).length === 0
+                        ? "None yet"
+                        : gameState.players
+                            .filter((p) => p.call !== null)
+                            .map((p, i, arr) => (
+                              <span key={p.id}>
+                                {p.isBlindCalling && <EyeOff className="w-3 h-3 inline mr-0.5 text-purple-500" />}
+                                {p.name}: {p.call}
+                                {i < arr.length - 1 ? ", " : ""}
+                              </span>
+                            ))}
                     </div>
                   </div>
 

@@ -7,7 +7,7 @@ import { EyeOff, AlertTriangle } from "lucide-react";
 
 interface CallDialogProps {
   cardCount: number;
-  currentCalls: { playerName: string; call: number }[];
+  currentCalls: { playerName: string; call: number; isBlindCalling?: boolean }[];
   isDealer: boolean;
   onMakeCall: (call: number) => void;
   playerName: string;
@@ -51,7 +51,12 @@ export function CallDialog({
             <p className="text-sm font-medium text-muted-foreground">Current calls:</p>
             <div className="flex flex-wrap gap-2">
               {currentCalls.map((c, i) => (
-                <Badge key={i} variant="secondary">
+                <Badge
+                  key={i}
+                  variant="secondary"
+                  className={cn(c.isBlindCalling && "bg-purple-500/20 border-purple-500/30")}
+                >
+                  {c.isBlindCalling && <EyeOff className="w-3 h-3 mr-1" />}
                   {c.playerName}: {c.call}
                 </Badge>
               ))}
