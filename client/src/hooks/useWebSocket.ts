@@ -238,6 +238,21 @@ export function useWebSocket(): UseWebSocketReturn {
     };
   }, []);
 
+  // Request fresh state when tab becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && wsRef.current?.readyState === WebSocket.OPEN && gameId) {
+        // Request fresh state from server
+        wsRef.current.send(JSON.stringify({ type: "request_state" }));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [gameId]);
+
   const sendMessage = useCallback((message: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
