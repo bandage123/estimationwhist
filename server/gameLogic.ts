@@ -716,20 +716,20 @@ export class Game {
         }
 
         const call = this.generateCPUCall(actualCurrentPlayer);
-        let success = this.makeCall(actualCurrentPlayer.id, call);
-        if (!success) {
+        let result = this.makeCall(actualCurrentPlayer.id, call);
+        if (!result.success) {
           // This shouldn't happen with the fixed generateCPUCall, but handle gracefully
-          console.error(`CPU ${actualCurrentPlayer.name} failed to make call ${call}, trying alternatives`);
+          console.error(`CPU ${actualCurrentPlayer.name} failed to make call ${call}: ${result.error}, trying alternatives`);
           // Try all valid calls until one works
           for (let altCall = 0; altCall <= this.state.cardCount; altCall++) {
-            if (this.makeCall(actualCurrentPlayer.id, altCall)) {
-              success = true;
+            result = this.makeCall(actualCurrentPlayer.id, altCall);
+            if (result.success) {
               break;
             }
           }
         }
         // Only continue if a call was successfully made
-        if (success) {
+        if (result.success) {
           // Note: makeCall already calls notifyStateUpdate internally
           this.processCPUTurns();
         } else {
@@ -760,21 +760,31 @@ export class Game {
     }, (1000 + Math.random() * 500) * this.speedMultiplier); // 1-1.5 second delay, scaled by speed
   }
 
-  makeCall(playerId: string, call: number): boolean {
-    if (this.state.phase !== "calling") return false;
+  makeCall(playerId: string, call: number): { success: boolean; error?: string } {
+    if (this.state.phase !== "calling") {
+      console.log(`makeCall rejected: phase is ${this.state.phase}, not "calling"`);
+      return { success: false, error: `Cannot make call - game phase is "${this.state.phase}", not "calling"` };
+    }
 
     const player = this.state.players[this.state.currentPlayerIndex];
-    if (player.id !== playerId) return false;
+    if (player.id !== playerId) {
+      console.log(`makeCall rejected: current player is ${player.id} (${player.name}), not ${playerId}`);
+      return { success: false, error: `It's not your turn to call (current: ${player.name})` };
+    }
 
     // Validate call
-    if (call < 0 || call > this.state.cardCount) return false;
+    if (call < 0 || call > this.state.cardCount) {
+      return { success: false, error: `Invalid call value: ${call} (must be 0-${this.state.cardCount})` };
+    }
 
     // Calculate dealer restriction
     let forbidden: number | null = null;
     if (player.isDealer) {
       const totalCalled = this.state.players.reduce((sum, p) => sum + (p.call ?? 0), 0);
       forbidden = this.state.cardCount - totalCalled;
-      if (call === forbidden) return false;
+      if (call === forbidden) {
+        return { success: false, error: `As dealer, you cannot call ${forbidden} (total would equal card count)` };
+      }
     }
 
     // No3Z rule for Keller format
@@ -799,10 +809,10 @@ export class Game {
             // No valid alternative exists - allow breaking No3Z to avoid stuck game
             // (This can happen on 1-card rounds where forbidden=1 and No3Z blocks 0)
           } else {
-            return false; // Has alternatives, enforce No3Z
+            return { success: false, error: "No3Z rule: Cannot call 0 three times in a row" };
           }
         } else {
-          return false; // Cannot call 0 three times in a row
+          return { success: false, error: "No3Z rule: Cannot call 0 three times in a row" };
         }
       }
     }
@@ -837,11 +847,11 @@ export class Game {
 
     // Notify state update
     this.notifyStateUpdate();
-    
-    // Note: processCPUTurns is called by the caller (either wsHandler for human plays, 
+
+    // Note: processCPUTurns is called by the caller (either wsHandler for human plays,
     // or processCPUTurns itself for CPU chains). We don't call it here to avoid duplicate calls.
 
-    return true;
+    return { success: true };
   }
 
   // Public method to trigger CPU processing - called by wsHandler after human actions
@@ -1224,13 +1234,23 @@ export class Game {
   }
 
   haloContinue(): boolean {
-    if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
-    if (!this.state.haloMinigame.isComplete) return false;
+    if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) {
+      console.log(`haloContinue rejected: phase=${this.state.phase}, haloMinigame exists=${!!this.state.haloMinigame}`);
+      return false;
+    }
+    if (!this.state.haloMinigame.isComplete) {
+      console.log("haloContinue rejected: Halo not complete");
+      return false;
+    }
+
+    console.log(`haloContinue: transitioning from round ${this.state.currentRound} to ${this.state.currentRound + 1}`);
 
     // Clear Halo state and proceed to next round
     // Note: Halo scores are added at the end of round 8 in endRound()
     this.state.haloMinigame = undefined;
     this.proceedToNextRound();
+
+    console.log(`haloContinue complete: phase=${this.state.phase}, round=${this.state.currentRound}, currentPlayerIndex=${this.state.currentPlayerIndex}, currentPlayer=${this.state.players[this.state.currentPlayerIndex]?.name}`);
     return true;
   }
 

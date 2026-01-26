@@ -196,8 +196,9 @@ export function setupWebSocket(server: Server): void {
               return;
             }
             
-            if (!game.makeCall(client.playerId, message.call)) {
-              sendError(ws, "Invalid call");
+            const callResult = game.makeCall(client.playerId, message.call);
+            if (!callResult.success) {
+              sendError(ws, callResult.error || "Invalid call");
               return;
             }
             
