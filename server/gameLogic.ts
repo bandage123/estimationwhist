@@ -1040,7 +1040,15 @@ export class Game {
       }
     }
 
-    // Note: Halo scores are added in haloContinue() so they show from the start of round 8
+    // Keller format: Add Halo scores after round 8 ends
+    if (this.state.gameFormat === "keller" && this.state.kellerPlayerStates && this.state.currentRound === 8) {
+      for (const player of this.state.players) {
+        const kellerState = this.state.kellerPlayerStates[player.id];
+        if (kellerState && kellerState.haloScore !== null) {
+          player.score += kellerState.haloScore;
+        }
+      }
+    }
 
     this.state.roundHistory.push(roundResult);
     this.state.phase = "round_end";
@@ -1219,17 +1227,8 @@ export class Game {
     if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
     if (!this.state.haloMinigame.isComplete) return false;
 
-    // Add Halo scores to player scores NOW so they show in scoreboard from round 8
-    if (this.state.kellerPlayerStates) {
-      for (const player of this.state.players) {
-        const kellerState = this.state.kellerPlayerStates[player.id];
-        if (kellerState && kellerState.haloScore !== null) {
-          player.score += kellerState.haloScore;
-        }
-      }
-    }
-
     // Clear Halo state and proceed to next round
+    // Note: Halo scores are added at the end of round 8 in endRound()
     this.state.haloMinigame = undefined;
     this.proceedToNextRound();
     return true;
