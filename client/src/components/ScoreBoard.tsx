@@ -120,7 +120,7 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
       <h4 className="font-medium text-[9px] text-muted-foreground mb-0.5">
         History
       </h4>
-      <ScrollArea className="h-28 md:h-40">
+      <ScrollArea className="h-52 md:h-64">
         <table className="w-full text-[8px]">
           <thead>
             <tr className="border-b">
@@ -250,7 +250,7 @@ export function FinalScoreBoard({ players, roundHistory, onReturnToMenu, onPlayA
           <CardTitle className="text-sm">Round History</CardTitle>
         </CardHeader>
         <CardContent className="p-2">
-          <ScrollArea className="h-48">
+          <ScrollArea className="h-64">
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="border-b">
