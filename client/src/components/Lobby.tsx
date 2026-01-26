@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal } from "lucide-react";
+import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal, Save, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Player, GameFormat } from "@shared/schema";
+import { Player, GameFormat, GameState } from "@shared/schema";
 import { HighScores } from "./HighScores";
+import { getSavedGames, deleteSavedGame, formatSaveDate, SavedGame } from "@/lib/savedGames";
 
 // Inline a few countries and adjectives for the selector
 const COUNTRIES_SELECT = [
@@ -35,17 +36,35 @@ interface LobbyCreateProps {
   onCreateSinglePlayerGame: (playerName: string, cpuCount: number, gameFormat?: GameFormat) => void;
   onCreateOlympicsGame: (playerName: string, countryCode?: string, gameFormat?: GameFormat) => void;
   onJoinGame: (gameId: string, playerName: string) => void;
+  onRestoreSavedGame: (savedState: GameState, saveId: string) => void;
   isConnecting: boolean;
 }
 
-export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOlympicsGame, onJoinGame, isConnecting }: LobbyCreateProps) {
+export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOlympicsGame, onJoinGame, onRestoreSavedGame, isConnecting }: LobbyCreateProps) {
   const [playerName, setPlayerName] = useState("");
   const [gameId, setGameId] = useState("");
-  const [mode, setMode] = useState<"single" | "tournament" | "olympics" | "multi" | "join" | null>(null);
+  const [mode, setMode] = useState<"single" | "tournament" | "olympics" | "multi" | "join" | "saved" | null>(null);
   const [cpuCount, setCpuCount] = useState("3");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [gameFormat, setGameFormat] = useState<GameFormat>("traditional");
   const [selectedTournament, setSelectedTournament] = useState("");
+  const [savedGames, setSavedGames] = useState<SavedGame[]>([]);
+
+  // Load saved games on mount and when mode changes to 'saved'
+  useEffect(() => {
+    if (mode === "saved" || mode === null) {
+      setSavedGames(getSavedGames());
+    }
+  }, [mode]);
+
+  const handleDeleteSave = (id: string) => {
+    deleteSavedGame(id);
+    setSavedGames(getSavedGames());
+  };
+
+  const handleLoadSave = (save: SavedGame) => {
+    onRestoreSavedGame(save.gameState, save.id);
+  };
 
   const handleCreateMultiplayer = () => {
     if (playerName.trim()) {
@@ -148,6 +167,86 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                 data-testid="button-join-mode"
               >
                 Join existing multiplayer game
+              </Button>
+              {savedGames.length > 0 && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setMode("saved")}
+                >
+                  <Save className="w-4 h-4" />
+                  Continue Saved Game ({savedGames.length})
+                </Button>
+              )}
+            </div>
+          ) : mode === "saved" ? (
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Save className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium text-sm">Saved Games</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Continue where you left off
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {savedGames.map((save) => (
+                  <div
+                    key={save.id}
+                    className="p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium truncate">{save.playerName}</span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {save.gameFormat}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          <div>
+                            {save.isOlympics ? (
+                              <>World Cup - {save.olympicsPhase === "finals" ? "Finals" : `Group ${save.groupNumber}`}</>
+                            ) : (
+                              <>Round {save.currentRound}/13</>
+                            )}
+                          </div>
+                          <div>Score: {save.playerScore} pts</div>
+                          <div>{formatSaveDate(save.savedAt)}</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 text-xs"
+                          onClick={() => handleLoadSave(save)}
+                        >
+                          Load
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteSave(save.id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => setMode(null)}
+              >
+                Back
               </Button>
             </div>
           ) : mode === "tournament" ? (

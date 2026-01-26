@@ -1953,6 +1953,75 @@ class GameManager {
       this.playerGameMap.delete(playerId);
     }
   }
+
+  restoreSavedGame(savedState: GameState, newPlayerId: string): Game | null {
+    // Only allow restoring single player or Olympics games
+    if (!savedState.isSinglePlayer && !savedState.isOlympics) {
+      return null;
+    }
+
+    // Find the human player in the saved state
+    const humanPlayer = savedState.players.find(p => !p.isCPU);
+    if (!humanPlayer) return null;
+
+    // Create a new game instance
+    const game = new Game(humanPlayer.name, newPlayerId, savedState.isSinglePlayer || false, 0, savedState.gameFormat || "traditional");
+
+    // Generate a new game ID for the restored game
+    const newGameId = game.state.id;
+
+    // Replace the state with the saved state
+    game.state = { ...savedState, id: newGameId };
+
+    // Update the human player's ID to the new connection's ID
+    const playerIndex = game.state.players.findIndex(p => !p.isCPU);
+    if (playerIndex >= 0) {
+      const oldPlayerId = game.state.players[playerIndex].id;
+      game.state.players[playerIndex].id = newPlayerId;
+      game.state.players[playerIndex].isConnected = true;
+
+      // Also update kellerPlayerStates if it exists
+      if (game.state.kellerPlayerStates && game.state.kellerPlayerStates[oldPlayerId]) {
+        game.state.kellerPlayerStates[newPlayerId] = game.state.kellerPlayerStates[oldPlayerId];
+        delete game.state.kellerPlayerStates[oldPlayerId];
+      }
+
+      // Update allOlympicsPlayers if this is an Olympics game
+      if (game.state.allOlympicsPlayers) {
+        const olympicsPlayerIndex = game.state.allOlympicsPlayers.findIndex(p => p.id === oldPlayerId);
+        if (olympicsPlayerIndex >= 0) {
+          game.state.allOlympicsPlayers[olympicsPlayerIndex].id = newPlayerId;
+        }
+      }
+
+      // Update any references in Olympics groups
+      if (game.state.olympicsState?.groups) {
+        for (const group of game.state.olympicsState.groups) {
+          const groupPlayerIdx = group.playerIds.indexOf(oldPlayerId);
+          if (groupPlayerIdx >= 0) {
+            group.playerIds[groupPlayerIdx] = newPlayerId;
+          }
+          if (group.winnerId === oldPlayerId) {
+            group.winnerId = newPlayerId;
+          }
+        }
+      }
+
+      // Update finals player IDs
+      if (game.state.olympicsState?.finalsPlayerIds) {
+        const finalsIdx = game.state.olympicsState.finalsPlayerIds.indexOf(oldPlayerId);
+        if (finalsIdx >= 0) {
+          game.state.olympicsState.finalsPlayerIds[finalsIdx] = newPlayerId;
+        }
+      }
+    }
+
+    // Register the game
+    this.games.set(newGameId, game);
+    this.playerGameMap.set(newPlayerId, newGameId);
+
+    return game;
+  }
 }
 
 export const gameManager = new GameManager();

@@ -192,7 +192,8 @@ export type ClientMessage =
   | { type: "brucie_guess"; guess: "higher" | "lower" }
   | { type: "brucie_bank" }
   | { type: "skip_brucie" }
-  | { type: "brucie_continue" };
+  | { type: "brucie_continue" }
+  | { type: "restore_saved_game"; savedState: GameState };
 
 export type ServerMessage =
   | { type: "game_created"; gameId: string; playerId: string }

@@ -488,6 +488,43 @@ export function setupWebSocket(server: Server): void {
             broadcastToGame(game);
             break;
           }
+
+          case "restore_saved_game": {
+            const game = gameManager.restoreSavedGame(message.savedState, client.playerId);
+            if (!game) {
+              sendError(ws, "Could not restore saved game");
+              return;
+            }
+
+            client.gameId = game.state.id;
+
+            // Set up state update callback
+            game.setOnStateUpdate(() => {
+              sendToClient(ws, {
+                type: "game_state",
+                state: game.getStateForPlayer(client.playerId),
+                playerId: client.playerId,
+              });
+            });
+
+            sendToClient(ws, {
+              type: "game_created",
+              gameId: game.state.id,
+              playerId: client.playerId,
+            });
+
+            sendToClient(ws, {
+              type: "game_state",
+              state: game.getStateForPlayer(client.playerId),
+              playerId: client.playerId,
+            });
+
+            // If in playing or calling phase, trigger CPU processing
+            if (game.state.phase === "calling" || game.state.phase === "playing") {
+              game.triggerCPUProcessingIfNeeded();
+            }
+            break;
+          }
         }
       } catch (error) {
         console.error("WebSocket message error:", error);

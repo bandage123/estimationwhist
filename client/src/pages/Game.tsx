@@ -15,9 +15,10 @@ import { Card, Suit, Player, SpeedSetting } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check } from "lucide-react";
+import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check, Save } from "lucide-react";
 import { saveHighScore } from "@/lib/highScores";
 import { logGameStart, logGameCompletion } from "@/lib/analytics";
+import { saveGame } from "@/lib/savedGames";
 
 export default function Game() {
   const {
@@ -51,6 +52,7 @@ export default function Game() {
     brucieBank,
     skipBrucie,
     brucieContinue,
+    restoreSavedGame,
   } = useWebSocket();
 
   const { toast } = useToast();
@@ -58,6 +60,29 @@ export default function Game() {
   const [currentSpeed, setCurrentSpeed] = useState<SpeedSetting>(1);
   const [swapMode, setSwapMode] = useState(false);
   const [cardToSwap, setCardToSwap] = useState<Card | null>(null); // Card selected for swap, awaiting confirmation
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  const handleSaveGame = () => {
+    if (!gameState || !playerId) return;
+    try {
+      setSaveStatus("saving");
+      saveGame(gameState, playerId);
+      setSaveStatus("saved");
+      toast({
+        title: "Game Saved",
+        description: "You can continue from the main menu.",
+      });
+      // Reset status after 2 seconds
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (e) {
+      toast({
+        title: "Save Failed",
+        description: "Could not save the game.",
+        variant: "destructive",
+      });
+      setSaveStatus("idle");
+    }
+  };
   const [handBeforeSwap, setHandBeforeSwap] = useState<Card[] | null>(null); // Track hand to detect new card
   const [newSwappedCard, setNewSwappedCard] = useState<Card | null>(null); // The card received from swap
 
@@ -275,6 +300,7 @@ export default function Game() {
         onCreateSinglePlayerGame={createSinglePlayerGame}
         onCreateOlympicsGame={createOlympicsGame}
         onJoinGame={joinGame}
+        onRestoreSavedGame={restoreSavedGame}
         isConnecting={isConnecting}
       />
     );
@@ -789,22 +815,38 @@ export default function Game() {
         </Button>
         <div className="flex items-center gap-4">
           {(gameState.isSinglePlayer || gameState.isOlympics) && (
-            <div className="flex items-center gap-1">
-              <Gauge className="w-3 h-3 text-muted-foreground" />
-              <div className="flex gap-0.5">
-                {([0.25, 0.5, 1, 2] as SpeedSetting[]).map((speed) => (
-                  <Button
-                    key={speed}
-                    variant={currentSpeed === speed ? "default" : "ghost"}
-                    size="sm"
-                    className="h-6 px-1.5 text-xs"
-                    onClick={() => handleSpeedChange(speed)}
-                  >
-                    {speedLabels[speed]}
-                  </Button>
-                ))}
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs gap-1"
+                onClick={handleSaveGame}
+                disabled={saveStatus === "saving"}
+              >
+                {saveStatus === "saved" ? (
+                  <Check className="w-3 h-3 text-green-500" />
+                ) : (
+                  <Save className="w-3 h-3" />
+                )}
+                {saveStatus === "saved" ? "Saved" : "Save"}
+              </Button>
+              <div className="flex items-center gap-1">
+                <Gauge className="w-3 h-3 text-muted-foreground" />
+                <div className="flex gap-0.5">
+                  {([0.25, 0.5, 1, 2] as SpeedSetting[]).map((speed) => (
+                    <Button
+                      key={speed}
+                      variant={currentSpeed === speed ? "default" : "ghost"}
+                      size="sm"
+                      className="h-6 px-1.5 text-xs"
+                      onClick={() => handleSpeedChange(speed)}
+                    >
+                      {speedLabels[speed]}
+                    </Button>
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
           <div className="text-sm text-muted-foreground">
             Round {gameState.currentRound}/13

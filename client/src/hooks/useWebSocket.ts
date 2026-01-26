@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat } from "@shared/schema";
+import { deleteSavedGame } from "@/lib/savedGames";
 
 interface UseWebSocketReturn {
   gameState: GameState | null;
@@ -32,6 +33,7 @@ interface UseWebSocketReturn {
   brucieBank: () => void;
   skipBrucie: () => void;
   brucieContinue: () => void;
+  restoreSavedGame: (savedState: GameState, saveId: string) => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -230,6 +232,12 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "brucie_continue" });
   }, [sendMessage]);
 
+  const restoreSavedGame = useCallback((savedState: GameState, saveId: string) => {
+    sendMessage({ type: "restore_saved_game", savedState });
+    // Delete the save after restoring (it will be re-saved if user saves again)
+    deleteSavedGame(saveId);
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -261,5 +269,6 @@ export function useWebSocket(): UseWebSocketReturn {
     brucieBank,
     skipBrucie,
     brucieContinue,
+    restoreSavedGame,
   };
 }
