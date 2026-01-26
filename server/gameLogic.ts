@@ -1107,6 +1107,16 @@ export class Game {
     return true;
   }
 
+  haloContinue(): boolean {
+    if (this.state.phase !== "halo_minigame" || !this.state.haloMinigame) return false;
+    if (!this.state.haloMinigame.isComplete) return false;
+
+    // Clear Halo state and proceed to next round
+    this.state.haloMinigame = undefined;
+    this.proceedToNextRound();
+    return true;
+  }
+
   private completeHaloForPlayer(playerId: string, score: number): void {
     if (!this.state.haloMinigame || !this.state.kellerPlayerStates) return;
 
@@ -1124,17 +1134,11 @@ export class Game {
     const nextIdx = currentIdx + 1;
 
     if (nextIdx >= this.state.players.length) {
-      // All players finished - show results briefly then proceed to next round
+      // All players finished - wait for user to click continue
       this.state.haloMinigame.isComplete = true;
       this.state.haloMinigame.currentPlayerId = null;
       this.state.haloMinigame.currentCard = null;
       this.notifyStateUpdate();
-
-      // After a delay, proceed to the next round
-      setTimeout(() => {
-        this.state.haloMinigame = undefined;
-        this.proceedToNextRound();
-      }, 2000 * this.speedMultiplier);
     } else {
       // Next player
       this.state.haloMinigame.currentPlayerId = this.state.players[nextIdx].id;
@@ -1280,17 +1284,11 @@ export class Game {
     const nextIdx = currentIdx + 1;
 
     if (nextIdx >= this.state.players.length) {
-      // All players finished - show results briefly then proceed to next round
+      // All players finished - wait for user to click continue
       this.state.brucieBonus.isComplete = true;
       this.state.brucieBonus.currentPlayerId = null;
       this.state.brucieBonus.currentCard = null;
       this.notifyStateUpdate();
-
-      // After a delay, proceed to the next round
-      setTimeout(() => {
-        this.state.brucieBonus = undefined;
-        this.proceedToNextRound();
-      }, 2000 * this.speedMultiplier);
     } else {
       // Next player
       this.state.brucieBonus.currentPlayerId = this.state.players[nextIdx].id;
@@ -1299,6 +1297,16 @@ export class Game {
       this.notifyStateUpdate();
       this.processBrucieCPU();
     }
+  }
+
+  brucieContinue(): boolean {
+    if (this.state.phase !== "brucie_bonus" || !this.state.brucieBonus) return false;
+    if (!this.state.brucieBonus.isComplete) return false;
+
+    // Clear Brucie state and proceed to next round
+    this.state.brucieBonus = undefined;
+    this.proceedToNextRound();
+    return true;
   }
 
   private processBrucieCPU(): void {

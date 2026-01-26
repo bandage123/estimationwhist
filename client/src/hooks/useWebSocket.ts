@@ -27,9 +27,11 @@ interface UseWebSocketReturn {
   useSwap: (cardToSwap: Card) => void;
   haloGuess: (guess: "higher" | "lower" | "same") => void;
   haloBank: () => void;
+  haloContinue: () => void;
   brucieGuess: (guess: "higher" | "lower") => void;
   brucieBank: () => void;
   skipBrucie: () => void;
+  brucieContinue: () => void;
 }
 
 export function useWebSocket(): UseWebSocketReturn {
@@ -208,6 +210,10 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "halo_bank" });
   }, [sendMessage]);
 
+  const haloContinue = useCallback(() => {
+    sendMessage({ type: "halo_continue" });
+  }, [sendMessage]);
+
   const brucieGuess = useCallback((guess: "higher" | "lower") => {
     sendMessage({ type: "brucie_guess", guess });
   }, [sendMessage]);
@@ -218,6 +224,10 @@ export function useWebSocket(): UseWebSocketReturn {
 
   const skipBrucie = useCallback(() => {
     sendMessage({ type: "skip_brucie" });
+  }, [sendMessage]);
+
+  const brucieContinue = useCallback(() => {
+    sendMessage({ type: "brucie_continue" });
   }, [sendMessage]);
 
   return {
@@ -246,8 +256,10 @@ export function useWebSocket(): UseWebSocketReturn {
     useSwap,
     haloGuess,
     haloBank,
+    haloContinue,
     brucieGuess,
     brucieBank,
     skipBrucie,
+    brucieContinue,
   };
 }

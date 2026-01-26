@@ -46,9 +46,11 @@ export default function Game() {
     useSwap,
     haloGuess,
     haloBank,
+    haloContinue,
     brucieGuess,
     brucieBank,
     skipBrucie,
+    brucieContinue,
   } = useWebSocket();
 
   const { toast } = useToast();
@@ -512,6 +514,7 @@ export default function Game() {
           playerId={playerId || ""}
           onGuess={haloGuess}
           onBank={haloBank}
+          onContinue={haloContinue}
         />
       </div>
     );
@@ -544,6 +547,7 @@ export default function Game() {
           onGuess={brucieGuess}
           onBank={brucieBank}
           onSkip={skipBrucie}
+          onContinue={brucieContinue}
         />
       </div>
     );

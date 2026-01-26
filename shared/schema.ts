@@ -188,9 +188,11 @@ export type ClientMessage =
   | { type: "use_swap"; cardToSwap: Card }
   | { type: "halo_guess"; guess: "higher" | "lower" | "same" }
   | { type: "halo_bank" }
+  | { type: "halo_continue" }
   | { type: "brucie_guess"; guess: "higher" | "lower" }
   | { type: "brucie_bank" }
-  | { type: "skip_brucie" };
+  | { type: "skip_brucie" }
+  | { type: "brucie_continue" };
 
 export type ServerMessage =
   | { type: "game_created"; gameId: string; playerId: string }

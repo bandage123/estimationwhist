@@ -409,6 +409,22 @@ export function setupWebSocket(server: Server): void {
             break;
           }
 
+          case "halo_continue": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.haloContinue()) {
+              sendError(ws, "Cannot continue from Halo");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
           case "brucie_guess": {
             const game = gameManager.getGameForPlayer(client.playerId);
             if (!game) {
@@ -450,6 +466,22 @@ export function setupWebSocket(server: Server): void {
 
             if (!game.skipBrucie(client.playerId)) {
               sendError(ws, "Cannot skip Brucie bonus");
+              return;
+            }
+
+            broadcastToGame(game);
+            break;
+          }
+
+          case "brucie_continue": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            if (!game.brucieContinue()) {
+              sendError(ws, "Cannot continue from Brucie Bonus");
               return;
             }
 

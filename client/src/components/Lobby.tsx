@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag } from "lucide-react";
+import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Player, GameFormat } from "@shared/schema";
 import { HighScores } from "./HighScores";
@@ -41,10 +41,11 @@ interface LobbyCreateProps {
 export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOlympicsGame, onJoinGame, isConnecting }: LobbyCreateProps) {
   const [playerName, setPlayerName] = useState("");
   const [gameId, setGameId] = useState("");
-  const [mode, setMode] = useState<"single" | "olympics" | "multi" | "join" | null>(null);
+  const [mode, setMode] = useState<"single" | "tournament" | "olympics" | "multi" | "join" | null>(null);
   const [cpuCount, setCpuCount] = useState("3");
   const [selectedCountry, setSelectedCountry] = useState("");
   const [gameFormat, setGameFormat] = useState<GameFormat>("traditional");
+  const [selectedTournament, setSelectedTournament] = useState("");
 
   const handleCreateMultiplayer = () => {
     if (playerName.trim()) {
@@ -110,8 +111,22 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                   data-testid="button-single-mode"
                 >
                   <Bot className="w-5 h-5 text-primary" />
-                  <span className="font-semibold">Single Player</span>
+                  <span className="font-semibold">Single Player Game</span>
                   <span className="text-xs opacity-70">Play vs CPU</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setMode("tournament")}
+                  disabled={!playerName.trim()}
+                  className="w-full h-auto py-4 flex flex-col gap-2 border-2 hover:bg-primary/10 hover:border-primary"
+                  data-testid="button-tournament-mode"
+                >
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-primary" />
+                    <Medal className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-semibold">Tournaments</span>
+                  <span className="text-xs opacity-70">Play in the World Cup and Other Events</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -124,20 +139,6 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                   <span className="font-semibold">Multiplayer</span>
                   <span className="text-xs opacity-70">Play with friends</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setMode("olympics")}
-                  disabled={!playerName.trim()}
-                  className="w-full h-auto py-4 flex flex-col gap-2 border-2 hover:bg-primary/10 hover:border-primary"
-                  data-testid="button-olympics-mode"
-                >
-                  <div className="flex items-center gap-2">
-                    <Trophy className="w-5 h-5 text-primary" />
-                    <Flag className="w-4 h-4 text-primary" />
-                  </div>
-                  <span className="font-semibold">The Whist World Cup</span>
-                  <span className="text-xs opacity-70">49 countries compete in a tournament</span>
-                </Button>
               </div>
               <Button
                 variant="ghost"
@@ -146,7 +147,56 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                 disabled={!playerName.trim()}
                 data-testid="button-join-mode"
               >
-                Join existing game
+                Join existing multiplayer game
+              </Button>
+            </div>
+          ) : mode === "tournament" ? (
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <span className="font-medium text-sm">Tournaments</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Compete in special tournament events!
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Choose Tournament</label>
+                <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Select a tournament" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="world-cup">The Whist World Cup</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground italic">More Tournaments to Come!</p>
+              </div>
+
+              <Button
+                className="w-full"
+                size="sm"
+                onClick={() => {
+                  if (selectedTournament === "world-cup") {
+                    setMode("olympics");
+                  }
+                }}
+                disabled={!playerName.trim() || !selectedTournament}
+              >
+                Continue
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  setMode(null);
+                  setSelectedTournament("");
+                }}
+              >
+                Back
               </Button>
             </div>
           ) : mode === "olympics" ? (
@@ -216,7 +266,7 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
                 variant="ghost"
                 size="sm"
                 className="w-full"
-                onClick={() => setMode(null)}
+                onClick={() => setMode("tournament")}
               >
                 Back
               </Button>
