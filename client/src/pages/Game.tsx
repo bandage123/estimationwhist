@@ -16,7 +16,7 @@ import { Card, Suit, Player, SpeedSetting, GameFormat } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check, Save, UserX, Users, Bot } from "lucide-react";
+import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check, Save, UserX, Users, Bot, RotateCcw } from "lucide-react";
 import { saveHighScore } from "@/lib/highScores";
 import { logGameStart, logGameCompletion } from "@/lib/analytics";
 import { saveGame, autoSaveGame, clearAutoSave } from "@/lib/savedGames";
@@ -823,9 +823,16 @@ export default function Game() {
                   Better luck next time! {champion?.name} from {champion?.countryName} has claimed the crown.
                 </p>
               )}
-              <Button onClick={handleReturnToMenu} size="lg" data-testid="button-olympics-finish">
-                Return to Main Menu
-              </Button>
+              <div className="flex justify-center gap-3">
+                <Button onClick={handlePlayAgain} size="lg" className="gap-2" data-testid="button-play-again-olympics">
+                  <RotateCcw className="w-4 h-4" />
+                  Play Again
+                </Button>
+                <Button onClick={handleReturnToMenu} size="lg" variant="outline" data-testid="button-olympics-finish">
+                  <Home className="w-4 h-4 mr-2" />
+                  Main Menu
+                </Button>
+              </div>
             </div>
           </div>
         </div>
