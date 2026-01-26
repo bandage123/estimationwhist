@@ -372,26 +372,40 @@ export class Game {
     this.state.trickNumber = 1;
     this.state.currentTrick = { cards: [], leadSuit: null, winnerId: null };
 
-    // Reset players for new round
-    this.state.players.forEach(p => {
+    // Reset players for new round - create fresh empty arrays
+    for (const p of this.state.players) {
       p.hand = [];
       p.call = null;
       p.tricksWon = 0;
       p.isBlindCalling = false;
-    });
+    }
 
-    // Deal cards
+    // Deal cards from a fresh shuffled deck
     const deck = shuffleDeck(createDeck());
     let cardIndex = 0;
     for (let c = 0; c < this.state.cardCount; c++) {
       for (let p = 0; p < this.state.players.length; p++) {
-        this.state.players[p].hand.push(deck[cardIndex++]);
+        const card = deck[cardIndex++];
+        this.state.players[p].hand.push(card);
       }
     }
 
     // Store remaining deck for swap functionality (Keller format)
     if (this.state.gameFormat === "keller") {
       this.state.swapDeck = deck.slice(cardIndex);
+    }
+
+    // VALIDATION: Check for duplicate cards across all hands
+    const allDealtCards: string[] = [];
+    for (const player of this.state.players) {
+      for (const card of player.hand) {
+        const cardKey = `${card.suit}-${card.rank}`;
+        if (allDealtCards.includes(cardKey)) {
+          console.error(`DUPLICATE CARD DETECTED: ${cardKey} in round ${roundNumber}`);
+          console.error('All hands:', this.state.players.map(p => ({ name: p.name, hand: p.hand })));
+        }
+        allDealtCards.push(cardKey);
+      }
     }
 
     // Sort each player's hand
@@ -861,6 +875,17 @@ export class Game {
       if (hasSuit && card.suit !== leadSuit) {
         return false; // Must follow suit
       }
+    }
+
+    // VALIDATION: Check if this card has already been played in this trick
+    const alreadyPlayed = this.state.currentTrick.cards.some(
+      c => c.card.suit === card.suit && c.card.rank === card.rank
+    );
+    if (alreadyPlayed) {
+      console.error(`DUPLICATE CARD IN TRICK: ${card.suit} ${card.rank} played by ${player.name}`);
+      console.error('Current trick:', this.state.currentTrick.cards);
+      console.error('All hands:', this.state.players.map(p => ({ name: p.name, hand: p.hand })));
+      return false;
     }
 
     // Remove card from hand
