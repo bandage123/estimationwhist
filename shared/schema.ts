@@ -187,6 +187,7 @@ export type ClientMessage =
   | { type: "create_single_player_game"; playerName: string; cpuCount: number; gameFormat?: GameFormat }
   | { type: "create_olympics_game"; playerName: string; countryCode?: string; gameFormat?: GameFormat }
   | { type: "join_game"; gameId: string; playerName: string }
+  | { type: "reconnect"; playerId: string; gameId: string }
   | { type: "start_game" }
   | { type: "make_call"; call: number }
   | { type: "play_card"; card: Card }

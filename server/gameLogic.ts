@@ -2185,6 +2185,47 @@ class GameManager {
     }
   }
 
+  // Reconnect a player to their existing game with a new WebSocket connection
+  reconnectPlayer(oldPlayerId: string, gameId: string, newPlayerId: string): Game | null {
+    const game = this.games.get(gameId);
+    if (!game) {
+      console.log(`Reconnect failed: game ${gameId} not found`);
+      return null;
+    }
+
+    // Find the player in the game by the old playerId
+    const playerIndex = game.state.players.findIndex(p => p.id === oldPlayerId);
+    if (playerIndex === -1) {
+      console.log(`Reconnect failed: player ${oldPlayerId} not found in game ${gameId}`);
+      return null;
+    }
+
+    // Update the player's ID to the new connection's ID
+    const player = game.state.players[playerIndex];
+    player.id = newPlayerId;
+
+    // Update the playerGameMap
+    this.playerGameMap.delete(oldPlayerId);
+    this.playerGameMap.set(newPlayerId, gameId);
+
+    // Update Keller player state if applicable
+    if (game.state.kellerPlayerStates && game.state.kellerPlayerStates[oldPlayerId]) {
+      game.state.kellerPlayerStates[newPlayerId] = game.state.kellerPlayerStates[oldPlayerId];
+      delete game.state.kellerPlayerStates[oldPlayerId];
+    }
+
+    // Update minigame states if player was in a minigame
+    if (game.state.haloMinigame?.currentPlayerId === oldPlayerId) {
+      game.state.haloMinigame.currentPlayerId = newPlayerId;
+    }
+    if (game.state.brucieBonus?.currentPlayerId === oldPlayerId) {
+      game.state.brucieBonus.currentPlayerId = newPlayerId;
+    }
+
+    console.log(`Player reconnected successfully: ${player.name} (${oldPlayerId} -> ${newPlayerId}) in game ${gameId}`);
+    return game;
+  }
+
   restoreSavedGame(savedState: GameState, newPlayerId: string): Game | null {
     // Only allow restoring single player or Olympics games
     if (!savedState.isSinglePlayer && !savedState.isOlympics) {

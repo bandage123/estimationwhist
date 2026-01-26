@@ -135,27 +135,64 @@ export function setupWebSocket(server: Server): void {
               message.playerName,
               client.playerId
             );
-            
+
             if (!game) {
               sendError(ws, "Could not join game. It may be full or already started.");
               return;
             }
-            
+
             client.gameId = game.state.id;
-            
+
             sendToClient(ws, {
               type: "game_joined",
               playerId: client.playerId,
             });
-            
+
             // Broadcast updated state to all players
             broadcastToGame(game);
-            
+
             sendToClient(ws, {
               type: "game_state",
               state: game.getStateForPlayer(client.playerId),
               playerId: client.playerId,
             });
+            break;
+          }
+
+          case "reconnect": {
+            // Attempt to reconnect to an existing game with the old playerId
+            const game = gameManager.reconnectPlayer(message.playerId, message.gameId, client.playerId);
+
+            if (!game) {
+              sendError(ws, "Could not reconnect to game. The game may have ended or your session expired.");
+              return;
+            }
+
+            client.gameId = game.state.id;
+
+            // Set up state update callback for single player/Olympics games
+            if (game.state.isSinglePlayer || game.state.isOlympics) {
+              game.setOnStateUpdate(() => {
+                sendToClient(ws, {
+                  type: "game_state",
+                  state: game.getStateForPlayer(client.playerId),
+                  playerId: client.playerId,
+                });
+              });
+            }
+
+            sendToClient(ws, {
+              type: "game_joined",
+              playerId: client.playerId,
+            });
+
+            sendToClient(ws, {
+              type: "game_state",
+              state: game.getStateForPlayer(client.playerId),
+              playerId: client.playerId,
+            });
+
+            console.log(`Player reconnected: old=${message.playerId}, new=${client.playerId}, game=${game.state.id}`);
             break;
           }
 

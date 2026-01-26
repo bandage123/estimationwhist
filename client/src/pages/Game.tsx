@@ -290,6 +290,9 @@ export default function Game() {
   }, [gameState?.phase, gameState?.id, gameState?.isSinglePlayer, gameState?.isOlympics, gameState?.gameFormat, gameState?.players, gameState?.roundHistory, currentPlayer, toast]);
 
   const handleReturnToMenu = () => {
+    // Clear session storage to prevent reconnect attempts to old game
+    sessionStorage.removeItem('whist_player_id');
+    sessionStorage.removeItem('whist_game_id');
     window.location.reload();
   };
 

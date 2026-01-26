@@ -37,6 +37,10 @@ interface UseWebSocketReturn {
   minigameAcknowledge: () => void;
 }
 
+// Session storage keys for reconnection
+const SESSION_PLAYER_ID_KEY = 'whist_player_id';
+const SESSION_GAME_ID_KEY = 'whist_game_id';
+
 export function useWebSocket(): UseWebSocketReturn {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -44,10 +48,11 @@ export function useWebSocket(): UseWebSocketReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingMessageRef = useRef<ClientMessage | null>(null);
+  const reconnectAttemptedRef = useRef<boolean>(false);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -64,9 +69,21 @@ export function useWebSocket(): UseWebSocketReturn {
     ws.onopen = () => {
       setIsConnected(true);
       setIsConnecting(false);
-      
-      // Send pending message if any
-      if (pendingMessageRef.current) {
+
+      // Check for stored session to attempt reconnection
+      const storedPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY);
+      const storedGameId = sessionStorage.getItem(SESSION_GAME_ID_KEY);
+
+      if (storedPlayerId && storedGameId && !reconnectAttemptedRef.current) {
+        reconnectAttemptedRef.current = true;
+        console.log(`Attempting to reconnect: playerId=${storedPlayerId}, gameId=${storedGameId}`);
+        ws.send(JSON.stringify({
+          type: "reconnect",
+          playerId: storedPlayerId,
+          gameId: storedGameId
+        }));
+      } else if (pendingMessageRef.current) {
+        // Send pending message if any (for new game creation)
         ws.send(JSON.stringify(pendingMessageRef.current));
         pendingMessageRef.current = null;
       }
@@ -80,9 +97,14 @@ export function useWebSocket(): UseWebSocketReturn {
           case "game_created":
             setGameId(message.gameId);
             setPlayerId(message.playerId);
+            // Store for reconnection
+            sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
+            sessionStorage.setItem(SESSION_GAME_ID_KEY, message.gameId);
             break;
           case "game_joined":
             setPlayerId(message.playerId);
+            // Store for reconnection
+            sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
             break;
           case "game_state":
             setGameState(message.state);
@@ -90,9 +112,20 @@ export function useWebSocket(): UseWebSocketReturn {
             if (!gameId) {
               setGameId(message.state.id);
             }
+            // Store for reconnection
+            sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
+            sessionStorage.setItem(SESSION_GAME_ID_KEY, message.state.id);
+            // Clear reconnect flag on successful state receive
+            reconnectAttemptedRef.current = false;
             break;
           case "error":
             setError(message.message);
+            // If reconnect failed, clear stored session and allow new game creation
+            if (message.message.includes("Could not reconnect")) {
+              sessionStorage.removeItem(SESSION_PLAYER_ID_KEY);
+              sessionStorage.removeItem(SESSION_GAME_ID_KEY);
+              reconnectAttemptedRef.current = false;
+            }
             break;
         }
       } catch (e) {
@@ -105,8 +138,11 @@ export function useWebSocket(): UseWebSocketReturn {
       setIsConnecting(false);
       wsRef.current = null;
 
-      // Attempt to reconnect if we had a game
-      if (gameId && playerId) {
+      // Attempt to reconnect if we had a game (check both state and storage)
+      const storedPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY);
+      const storedGameId = sessionStorage.getItem(SESSION_GAME_ID_KEY);
+      if ((gameId && playerId) || (storedPlayerId && storedGameId)) {
+        reconnectAttemptedRef.current = false; // Reset so we can try reconnect again
         reconnectTimeoutRef.current = setTimeout(() => {
           connect();
         }, 2000);
