@@ -823,16 +823,9 @@ export default function Game() {
                   Better luck next time! {champion?.name} from {champion?.countryName} has claimed the crown.
                 </p>
               )}
-              <div className="flex justify-center gap-3">
-                <Button onClick={handlePlayAgain} size="lg" className="gap-2" data-testid="button-play-again-olympics">
-                  <RotateCcw className="w-4 h-4" />
-                  Play Again
-                </Button>
-                <Button onClick={handleReturnToMenu} size="lg" variant="outline" data-testid="button-olympics-finish">
-                  <Home className="w-4 h-4 mr-2" />
-                  Main Menu
-                </Button>
-              </div>
+              <Button onClick={handleReturnToMenu} size="lg" data-testid="button-olympics-finish">
+                Return to Main Menu
+              </Button>
             </div>
           </div>
         </div>
@@ -935,7 +928,7 @@ export default function Game() {
               players={gameState.players}
               roundHistory={gameState.roundHistory}
               onReturnToMenu={handleReturnToMenu}
-              onPlayAgain={(gameState.isSinglePlayer || gameState.isOlympics) ? handlePlayAgain : undefined}
+              onPlayAgain={gameState.isSinglePlayer ? handlePlayAgain : undefined}
             />
           </div>
         </div>
