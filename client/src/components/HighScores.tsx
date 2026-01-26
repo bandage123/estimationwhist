@@ -12,7 +12,7 @@ interface HighScoresProps {
 export function HighScores({ className }: HighScoresProps) {
   const [gameFormat, setGameFormat] = useState<GameFormat>("traditional");
   const [gameMode, setGameMode] = useState<GameMode>("cpu");
-  const [playerCount, setPlayerCount] = useState<PlayerCount>(7);
+  const [playerCount, setPlayerCount] = useState<PlayerCount>("any");
   const [scores, setScores] = useState<HighScoreEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -120,12 +120,13 @@ export function HighScores({ className }: HighScoresProps) {
       <div className="mb-3">
         <Select
           value={playerCount.toString()}
-          onValueChange={(v) => setPlayerCount(parseInt(v) as PlayerCount)}
+          onValueChange={(v) => setPlayerCount(v === 'any' ? 'any' : parseInt(v) as PlayerCount)}
         >
           <SelectTrigger className="w-full h-9 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="any">Any Players</SelectItem>
             <SelectItem value="7">7 Players</SelectItem>
             <SelectItem value="6">6 Players</SelectItem>
             <SelectItem value="5">5 Players</SelectItem>

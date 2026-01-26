@@ -12,7 +12,7 @@ export interface HighScoreEntry {
 }
 
 export type GameMode = 'cpu' | 'human';
-export type PlayerCount = 2 | 3 | 4 | 5 | 6 | 7;
+export type PlayerCount = 2 | 3 | 4 | 5 | 6 | 7 | 'any';
 
 const MAX_SCORES_PER_CATEGORY = 10;
 
@@ -22,12 +22,18 @@ export async function getHighScores(
   playerCount: PlayerCount
 ): Promise<HighScoreEntry[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('high_scores')
       .select('*')
       .eq('game_format', gameFormat)
-      .eq('is_multiplayer', gameMode === 'human')
-      .eq('player_count', playerCount)
+      .eq('is_multiplayer', gameMode === 'human');
+
+    // Only filter by player_count if not "any"
+    if (playerCount !== 'any') {
+      query = query.eq('player_count', playerCount);
+    }
+
+    const { data, error } = await query
       .order('score', { ascending: false })
       .limit(MAX_SCORES_PER_CATEGORY);
 
