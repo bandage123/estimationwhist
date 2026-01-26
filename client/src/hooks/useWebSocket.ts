@@ -338,6 +338,11 @@ export function useWebSocket(): UseWebSocketReturn {
   }, [sendMessage]);
 
   const restoreSavedGame = useCallback((savedState: GameState, saveId: string) => {
+    // Clear old session storage to prevent reconnect from taking priority over restore
+    sessionStorage.removeItem(SESSION_PLAYER_ID_KEY);
+    sessionStorage.removeItem(SESSION_GAME_ID_KEY);
+    reconnectAttemptedRef.current = false;
+
     sendMessage({ type: "restore_saved_game", savedState });
     // Delete the save after restoring (it will be re-saved if user saves again)
     deleteSavedGame(saveId);
