@@ -143,13 +143,17 @@ export function useWebSocket(): UseWebSocketReturn {
             reconnectAttemptedRef.current = false;
             break;
           case "error":
-            // If reconnect failed, silently clear stored session and allow new game creation
-            // Don't show an error - the user just needs to start a new game
+            // If reconnect failed, silently clear stored session and game state
+            // This sends user back to lobby where they can resume via auto-save if available
             if (message.message.includes("Could not reconnect")) {
               sessionStorage.removeItem(SESSION_PLAYER_ID_KEY);
               sessionStorage.removeItem(SESSION_GAME_ID_KEY);
               reconnectAttemptedRef.current = false;
-              // Don't set error - just silently allow fresh start
+              // Clear stale game state to return to lobby
+              setGameState(null);
+              setPlayerId(null);
+              setGameId(null);
+              // Don't set error - auto-save banner will show in lobby if available
             } else {
               setError(message.message);
             }
