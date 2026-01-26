@@ -1514,8 +1514,9 @@ export class Game {
     const player = this.state.players.find(p => p.id === playerId);
     if (!player) return false;
 
-    // Multiplier: banking gives current correct + 2 (min 2, max 3)
-    const multiplier = Math.min(this.state.brucieBonus.correctGuesses + 2, 3);
+    // Multiplier: 1 correct = 2x, 2 correct = 2.5x, 3 correct = 3x
+    const correctGuesses = this.state.brucieBonus.correctGuesses;
+    const multiplier = correctGuesses === 3 ? 3 : correctGuesses === 2 ? 2.5 : 2;
     const currentCard = this.state.brucieBonus.currentCard!;
 
     // Set result showing they banked
