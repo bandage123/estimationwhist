@@ -25,6 +25,8 @@ export interface Player {
   countryCode?: string; // ISO country code for Olympics mode
   countryName?: string; // Country name for Olympics mode
   isBlindCalling?: boolean; // Keller: true when player is calling blind this round
+  disconnectedAt?: string; // ISO timestamp when player disconnected (for multiplayer)
+  isCPUControlled?: boolean; // True when a human player is being played by CPU (voted replacement)
 }
 
 export interface Trick {
@@ -165,6 +167,8 @@ export interface GameState {
   haloMinigame?: HaloMinigameState;
   brucieBonus?: BrucieBonusState;
   swapDeck?: Card[]; // Remaining deck for swap functionality
+  // Multiplayer disconnection handling
+  cpuReplacementVotes?: Record<string, string[]>; // disconnectedPlayerId -> array of voter playerIds who voted yes
 }
 
 export interface RoundResult {
@@ -211,7 +215,9 @@ export type ClientMessage =
   | { type: "skip_brucie" }
   | { type: "brucie_continue" }
   | { type: "restore_saved_game"; savedState: GameState }
-  | { type: "minigame_acknowledge" };  // Acknowledge seeing result, continue to next action
+  | { type: "minigame_acknowledge" }  // Acknowledge seeing result, continue to next action
+  // Multiplayer disconnection handling
+  | { type: "vote_cpu_replacement"; disconnectedPlayerId: string; vote: boolean };
 
 export type ServerMessage =
   | { type: "game_created"; gameId: string; playerId: string }
@@ -219,7 +225,12 @@ export type ServerMessage =
   | { type: "game_state"; state: GameState; playerId: string }
   | { type: "error"; message: string }
   | { type: "player_joined"; playerName: string }
-  | { type: "player_left"; playerName: string };
+  | { type: "player_left"; playerName: string }
+  // Multiplayer disconnection handling
+  | { type: "player_disconnected"; playerName: string; playerId: string }
+  | { type: "player_reconnected"; playerName: string; playerId: string }
+  | { type: "cpu_replacement_vote_update"; disconnectedPlayerId: string; disconnectedPlayerName: string; votesNeeded: number; currentVotes: number }
+  | { type: "cpu_replacement_activated"; playerName: string };
 
 // Validation schemas
 export const createGameSchema = z.object({

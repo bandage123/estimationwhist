@@ -9,6 +9,7 @@ import { Users, Copy, CheckCircle, Loader2, Bot, Globe, Trophy, Flag, Medal, Sav
 import { useToast } from "@/hooks/use-toast";
 import { Player, GameFormat, GameState } from "@shared/schema";
 import { HighScores } from "./HighScores";
+import { JokerLogo } from "./JokerLogo";
 import { getSavedGames, deleteSavedGame, formatSaveDate, SavedGame, getAutoSavedGame, clearAutoSave } from "@/lib/savedGames";
 
 // Inline a few countries and adjectives for the selector
@@ -118,8 +119,8 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
       <div className="w-full max-w-md space-y-4 my-auto">
         <Card className="w-full">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
-            <span className="text-3xl">🃏</span>
+          <div className="mx-auto mb-4">
+            <JokerLogo size={80} />
           </div>
           <CardTitle className="text-2xl font-serif">Estimation Whist</CardTitle>
           <CardDescription>

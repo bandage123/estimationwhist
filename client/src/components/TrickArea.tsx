@@ -2,6 +2,7 @@ import { Card, Player, Suit, Trick } from "@shared/schema";
 import { PlayingCard } from "./PlayingCard";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Bot } from "lucide-react";
 
 interface TrickAreaProps {
   currentTrick: Trick;
@@ -99,10 +100,17 @@ export function TrickArea({
           <div className="text-center text-muted-foreground">
             <p className="text-sm md:text-lg">Waiting for cards...</p>
             {currentPlayer && (
-              <p className="text-xs md:text-sm mt-1">
+              <p className="text-xs md:text-sm mt-1 flex items-center justify-center gap-1">
                 <span className="font-semibold text-primary">
                   {currentPlayer.name}
-                </span> to play
+                </span>
+                {currentPlayer.isCPUControlled && (
+                  <span className="inline-flex items-center gap-0.5 text-orange-500">
+                    <Bot className="w-3 h-3" />
+                    <span className="text-[10px]">(CPU)</span>
+                  </span>
+                )}
+                <span> to play</span>
               </p>
             )}
           </div>

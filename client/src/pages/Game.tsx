@@ -15,7 +15,7 @@ import { Card, Suit, Player, SpeedSetting } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check, Save } from "lucide-react";
+import { AlertCircle, Home, Trophy, Flag, ChevronRight, Crown, Gauge, Sparkles, EyeOff, Shuffle, ArrowRight, Check, Save, UserX, Users, Bot } from "lucide-react";
 import { saveHighScore } from "@/lib/highScores";
 import { logGameStart, logGameCompletion } from "@/lib/analytics";
 import { saveGame, autoSaveGame, clearAutoSave } from "@/lib/savedGames";
@@ -54,6 +54,11 @@ export default function Game() {
     brucieContinue,
     restoreSavedGame,
     minigameAcknowledge,
+    // Disconnection handling
+    disconnectionNotification,
+    cpuReplacementVote,
+    clearDisconnectionNotification,
+    voteCpuReplacement,
   } = useWebSocket();
 
   const { toast } = useToast();
@@ -214,6 +219,30 @@ export default function Game() {
       });
     }
   }, [error, toast]);
+
+  // Show disconnection notifications
+  useEffect(() => {
+    if (disconnectionNotification) {
+      if (disconnectionNotification.type === 'disconnected') {
+        toast({
+          title: "Player Disconnected",
+          description: `${disconnectionNotification.playerName} has been disconnected for over a minute.`,
+          variant: "destructive",
+        });
+      } else if (disconnectionNotification.type === 'reconnected') {
+        toast({
+          title: "Player Reconnected",
+          description: `${disconnectionNotification.playerName} has rejoined the game.`,
+        });
+      } else if (disconnectionNotification.type === 'cpu_activated') {
+        toast({
+          title: "CPU Taking Over",
+          description: `A CPU is now playing for ${disconnectionNotification.playerName}.`,
+        });
+      }
+      clearDisconnectionNotification();
+    }
+  }, [disconnectionNotification, clearDisconnectionNotification, toast]);
 
   // Log game start for analytics (all game types for human players)
   const gameStartLoggedRef = useRef<string | null>(null);
@@ -953,6 +982,46 @@ export default function Game() {
             </div>
           )}
 
+          {/* CPU Replacement Vote Dialog */}
+          {cpuReplacementVote && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-card border rounded-lg p-6 max-w-sm mx-4 space-y-4">
+                <div className="text-center">
+                  <UserX className="w-8 h-8 mx-auto mb-2 text-orange-500" />
+                  <h2 className="text-lg font-bold">Player Disconnected</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    <span className="font-medium text-foreground">{cpuReplacementVote.disconnectedPlayerName}</span> has been disconnected.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Vote to have a CPU continue in their place?
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Users className="w-4 h-4" />
+                  <span>{cpuReplacementVote.currentVotes}/{cpuReplacementVote.votesNeeded} votes to proceed</span>
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    onClick={() => voteCpuReplacement(cpuReplacementVote.disconnectedPlayerId, true)}
+                    className="gap-2"
+                  >
+                    <Bot className="w-4 h-4" />
+                    Let CPU Play
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => voteCpuReplacement(cpuReplacementVote.disconnectedPlayerId, false)}
+                  >
+                    Wait
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Requires unanimous vote. If they reconnect, they'll take back control.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Calling phase - show dialog or waiting message */}
           {gameState.phase === "calling" && (
             <>
@@ -1023,7 +1092,13 @@ export default function Game() {
                       Waiting for{" "}
                       <span className="font-semibold text-foreground">
                         {gameState.players[gameState.currentPlayerIndex]?.name || ""}
-                      </span>{" "}
+                      </span>
+                      {gameState.players[gameState.currentPlayerIndex]?.isCPUControlled && (
+                        <span className="inline-flex items-center gap-0.5 text-orange-500 ml-1">
+                          <Bot className="w-3 h-3" />
+                          <span className="text-xs">(CPU)</span>
+                        </span>
+                      )}{" "}
                       to make their call...
                     </p>
                     <div className="mt-2 text-sm text-muted-foreground">

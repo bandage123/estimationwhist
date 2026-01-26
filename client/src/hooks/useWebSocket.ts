@@ -2,6 +2,21 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat } from "@shared/schema";
 import { deleteSavedGame } from "@/lib/savedGames";
 
+// Disconnection notification state
+interface DisconnectionNotification {
+  playerId: string;
+  playerName: string;
+  type: 'disconnected' | 'reconnected' | 'cpu_activated';
+}
+
+// CPU replacement vote state
+interface CpuReplacementVote {
+  disconnectedPlayerId: string;
+  disconnectedPlayerName: string;
+  votesNeeded: number;
+  currentVotes: number;
+}
+
 interface UseWebSocketReturn {
   gameState: GameState | null;
   playerId: string | null;
@@ -9,6 +24,11 @@ interface UseWebSocketReturn {
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
+  // Disconnection handling
+  disconnectionNotification: DisconnectionNotification | null;
+  cpuReplacementVote: CpuReplacementVote | null;
+  clearDisconnectionNotification: () => void;
+  voteCpuReplacement: (disconnectedPlayerId: string, vote: boolean) => void;
   createGame: (playerName: string, gameFormat?: GameFormat) => void;
   createSinglePlayerGame: (playerName: string, cpuCount: number, gameFormat?: GameFormat) => void;
   createOlympicsGame: (playerName: string, countryCode?: string, gameFormat?: GameFormat) => void;
@@ -48,11 +68,15 @@ export function useWebSocket(): UseWebSocketReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Disconnection handling state
+  const [disconnectionNotification, setDisconnectionNotification] = useState<DisconnectionNotification | null>(null);
+  const [cpuReplacementVote, setCpuReplacementVote] = useState<CpuReplacementVote | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingMessageRef = useRef<ClientMessage | null>(null);
   const reconnectAttemptedRef = useRef<boolean>(false);
+  const votedPlayersRef = useRef<Set<string>>(new Set()); // Track players we've voted on
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -126,6 +150,47 @@ export function useWebSocket(): UseWebSocketReturn {
               sessionStorage.removeItem(SESSION_GAME_ID_KEY);
               reconnectAttemptedRef.current = false;
             }
+            break;
+          case "player_disconnected":
+            setDisconnectionNotification({
+              playerId: message.playerId,
+              playerName: message.playerName,
+              type: 'disconnected'
+            });
+            break;
+          case "player_reconnected":
+            setDisconnectionNotification({
+              playerId: message.playerId,
+              playerName: message.playerName,
+              type: 'reconnected'
+            });
+            // Clear any pending vote for this player
+            setCpuReplacementVote(prev =>
+              prev?.disconnectedPlayerId === message.playerId ? null : prev
+            );
+            // Clear from voted set so they can vote again if player disconnects again
+            votedPlayersRef.current.delete(message.playerId);
+            break;
+          case "cpu_replacement_vote_update":
+            // Only show vote dialog if we haven't already voted for this player
+            if (!votedPlayersRef.current.has(message.disconnectedPlayerId)) {
+              setCpuReplacementVote({
+                disconnectedPlayerId: message.disconnectedPlayerId,
+                disconnectedPlayerName: message.disconnectedPlayerName,
+                votesNeeded: message.votesNeeded,
+                currentVotes: message.currentVotes
+              });
+            }
+            break;
+          case "cpu_replacement_activated":
+            setDisconnectionNotification({
+              playerId: '',
+              playerName: message.playerName,
+              type: 'cpu_activated'
+            });
+            // Clear the vote state and voted tracking
+            setCpuReplacementVote(null);
+            votedPlayersRef.current.clear();
             break;
         }
       } catch (e) {
@@ -279,6 +344,18 @@ export function useWebSocket(): UseWebSocketReturn {
     sendMessage({ type: "minigame_acknowledge" });
   }, [sendMessage]);
 
+  // Disconnection handling actions
+  const clearDisconnectionNotification = useCallback(() => {
+    setDisconnectionNotification(null);
+  }, []);
+
+  const voteCpuReplacement = useCallback((disconnectedPlayerId: string, vote: boolean) => {
+    sendMessage({ type: "vote_cpu_replacement", disconnectedPlayerId, vote });
+    // Track that we voted and close the dialog
+    votedPlayersRef.current.add(disconnectedPlayerId);
+    setCpuReplacementVote(null);
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -286,6 +363,11 @@ export function useWebSocket(): UseWebSocketReturn {
     isConnected,
     isConnecting,
     error,
+    // Disconnection handling
+    disconnectionNotification,
+    cpuReplacementVote,
+    clearDisconnectionNotification,
+    voteCpuReplacement,
     createGame,
     createSinglePlayerGame,
     createOlympicsGame,

@@ -12,6 +12,11 @@ interface ConnectedClient {
 
 const clients = new Map<WebSocket, ConnectedClient>();
 
+// Track disconnection notification timers
+const disconnectionTimers = new Map<string, NodeJS.Timeout>(); // playerId -> timer
+
+const DISCONNECTION_NOTIFY_DELAY = 60000; // 1 minute
+
 function broadcastToGame(game: Game, excludePlayerId?: string): void {
   clients.forEach((client, ws) => {
     if (client.gameId === game.state.id && client.playerId !== excludePlayerId) {
@@ -21,6 +26,17 @@ function broadcastToGame(game: Game, excludePlayerId?: string): void {
           state: game.getStateForPlayer(client.playerId),
           playerId: client.playerId,
         };
+        ws.send(JSON.stringify(message));
+      }
+    }
+  });
+}
+
+// Broadcast a specific message to all connected players in a game
+function broadcastMessageToGame(gameId: string, message: ServerMessage, excludePlayerId?: string): void {
+  clients.forEach((client, ws) => {
+    if (client.gameId === gameId && client.playerId !== excludePlayerId) {
+      if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(message));
       }
     }
@@ -160,6 +176,13 @@ export function setupWebSocket(server: Server): void {
           }
 
           case "reconnect": {
+            // Clear any pending disconnection timer for the old playerId
+            const existingTimer = disconnectionTimers.get(message.playerId);
+            if (existingTimer) {
+              clearTimeout(existingTimer);
+              disconnectionTimers.delete(message.playerId);
+            }
+
             // Attempt to reconnect to an existing game with the old playerId
             const game = gameManager.reconnectPlayer(message.playerId, message.gameId, client.playerId);
 
@@ -169,6 +192,32 @@ export function setupWebSocket(server: Server): void {
             }
 
             client.gameId = game.state.id;
+
+            // Find the reconnected player and clear disconnection status
+            const reconnectedPlayer = game.state.players.find(p => p.id === client.playerId);
+            if (reconnectedPlayer) {
+              const wasDisconnected = !reconnectedPlayer.isConnected || reconnectedPlayer.disconnectedAt;
+              const wasCPUControlled = reconnectedPlayer.isCPUControlled;
+
+              reconnectedPlayer.isConnected = true;
+              reconnectedPlayer.disconnectedAt = undefined;
+              reconnectedPlayer.isCPUControlled = false;
+
+              // Clear any pending votes for this player
+              if (game.state.cpuReplacementVotes) {
+                delete game.state.cpuReplacementVotes[message.playerId];
+                delete game.state.cpuReplacementVotes[client.playerId];
+              }
+
+              // Notify other players of reconnection (for multiplayer games)
+              if (!game.state.isSinglePlayer && !game.state.isOlympics && (wasDisconnected || wasCPUControlled)) {
+                broadcastMessageToGame(game.state.id, {
+                  type: "player_reconnected",
+                  playerName: reconnectedPlayer.name,
+                  playerId: client.playerId,
+                }, client.playerId);
+              }
+            }
 
             // Set up state update callback for single player/Olympics games
             if (game.state.isSinglePlayer || game.state.isOlympics) {
@@ -191,6 +240,9 @@ export function setupWebSocket(server: Server): void {
               state: game.getStateForPlayer(client.playerId),
               playerId: client.playerId,
             });
+
+            // Broadcast updated state to all players
+            broadcastToGame(game);
 
             console.log(`Player reconnected: old=${message.playerId}, new=${client.playerId}, game=${game.state.id}`);
             break;
@@ -581,6 +633,93 @@ export function setupWebSocket(server: Server): void {
             broadcastToGame(game);
             break;
           }
+
+          case "vote_cpu_replacement": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            // Only valid for multiplayer games
+            if (game.state.isSinglePlayer || game.state.isOlympics) {
+              sendError(ws, "CPU replacement voting is only for multiplayer games");
+              return;
+            }
+
+            const disconnectedPlayerId = message.disconnectedPlayerId;
+            const vote = message.vote;
+
+            // Check if the target player exists and is actually disconnected
+            const disconnectedPlayer = game.state.players.find(p => p.id === disconnectedPlayerId);
+            if (!disconnectedPlayer || disconnectedPlayer.isConnected) {
+              sendError(ws, "Player is not disconnected");
+              return;
+            }
+
+            // Initialize votes if needed
+            if (!game.state.cpuReplacementVotes) {
+              game.state.cpuReplacementVotes = {};
+            }
+            if (!game.state.cpuReplacementVotes[disconnectedPlayerId]) {
+              game.state.cpuReplacementVotes[disconnectedPlayerId] = [];
+            }
+
+            const votes = game.state.cpuReplacementVotes[disconnectedPlayerId];
+
+            if (vote) {
+              // Add vote if not already voted
+              if (!votes.includes(client.playerId)) {
+                votes.push(client.playerId);
+              }
+            } else {
+              // Remove vote
+              const idx = votes.indexOf(client.playerId);
+              if (idx !== -1) {
+                votes.splice(idx, 1);
+              }
+            }
+
+            // Count how many connected non-CPU players there are (excluding the disconnected one)
+            const connectedHumanPlayers = game.state.players.filter(
+              p => !p.isCPU && p.isConnected && p.id !== disconnectedPlayerId
+            );
+            const votesNeeded = connectedHumanPlayers.length;
+            const currentVotes = votes.length;
+
+            // Broadcast vote update
+            broadcastMessageToGame(game.state.id, {
+              type: "cpu_replacement_vote_update",
+              disconnectedPlayerId,
+              disconnectedPlayerName: disconnectedPlayer.name,
+              votesNeeded,
+              currentVotes,
+            });
+
+            // Check if unanimous
+            if (currentVotes >= votesNeeded && votesNeeded > 0) {
+              // Activate CPU replacement
+              disconnectedPlayer.isCPUControlled = true;
+
+              // Clear votes
+              delete game.state.cpuReplacementVotes[disconnectedPlayerId];
+
+              // Notify all players
+              broadcastMessageToGame(game.state.id, {
+                type: "cpu_replacement_activated",
+                playerName: disconnectedPlayer.name,
+              });
+
+              // If it's this player's turn, trigger CPU processing
+              const currentTurnPlayer = game.state.players[game.state.currentPlayerIndex];
+              if (currentTurnPlayer && currentTurnPlayer.id === disconnectedPlayerId) {
+                game.triggerCPUProcessingForDisconnectedPlayer();
+              }
+            }
+
+            broadcastToGame(game);
+            break;
+          }
         }
       } catch (error) {
         console.error("WebSocket message error:", error);
@@ -592,9 +731,46 @@ export function setupWebSocket(server: Server): void {
       const client = clients.get(ws);
       if (client) {
         const game = gameManager.getGameForPlayer(client.playerId);
-        if (game && game.state.phase === "lobby") {
-          gameManager.removePlayer(client.playerId);
-          broadcastToGame(game);
+        if (game) {
+          if (game.state.phase === "lobby") {
+            // In lobby, just remove the player
+            gameManager.removePlayer(client.playerId);
+            broadcastToGame(game);
+          } else if (!game.state.isSinglePlayer && !game.state.isOlympics) {
+            // In multiplayer game, mark player as disconnected
+            const player = game.state.players.find(p => p.id === client.playerId);
+            if (player && !player.isCPU) {
+              player.isConnected = false;
+              player.disconnectedAt = new Date().toISOString();
+
+              // Start timer to notify other players after 1 minute
+              const timerId = setTimeout(() => {
+                disconnectionTimers.delete(client.playerId);
+                // Check if player is still disconnected
+                const currentGame = gameManager.getGame(game.state.id);
+                if (currentGame) {
+                  const currentPlayer = currentGame.state.players.find(p => p.id === client.playerId);
+                  if (currentPlayer && !currentPlayer.isConnected && currentPlayer.disconnectedAt) {
+                    // Notify other players
+                    broadcastMessageToGame(game.state.id, {
+                      type: "player_disconnected",
+                      playerName: currentPlayer.name,
+                      playerId: client.playerId,
+                    });
+                    // Initialize vote tracking for this player
+                    if (!currentGame.state.cpuReplacementVotes) {
+                      currentGame.state.cpuReplacementVotes = {};
+                    }
+                    currentGame.state.cpuReplacementVotes[client.playerId] = [];
+                    broadcastToGame(currentGame);
+                  }
+                }
+              }, DISCONNECTION_NOTIFY_DELAY);
+
+              disconnectionTimers.set(client.playerId, timerId);
+              broadcastToGame(game);
+            }
+          }
         }
         clients.delete(ws);
       }

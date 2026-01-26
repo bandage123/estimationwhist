@@ -865,6 +865,69 @@ export class Game {
     }
   }
 
+  // Trigger CPU processing for a disconnected player who is now CPU-controlled
+  triggerCPUProcessingForDisconnectedPlayer(): void {
+    const currentPlayer = this.state.players[this.state.currentPlayerIndex];
+    if (currentPlayer?.isCPUControlled) {
+      this.processCPUControlledTurn();
+    }
+  }
+
+  // Process a turn for a CPU-controlled (disconnected) human player
+  private processCPUControlledTurn(): void {
+    if (this.state.phase !== "calling" && this.state.phase !== "playing") {
+      return;
+    }
+
+    const currentPlayer = this.state.players[this.state.currentPlayerIndex];
+    if (!currentPlayer || !currentPlayer.isCPUControlled) {
+      return;
+    }
+
+    // Use the same CPU logic as regular CPU players
+    setTimeout(() => {
+      // Re-check state is still valid
+      const actualCurrentPlayer = this.state.players[this.state.currentPlayerIndex];
+      if (!actualCurrentPlayer || !actualCurrentPlayer.isCPUControlled) {
+        return;
+      }
+
+      if (this.state.phase === "calling") {
+        const call = this.generateCPUCall(actualCurrentPlayer);
+        const result = this.makeCall(actualCurrentPlayer.id, call);
+        if (!result.success) {
+          // Try alternatives
+          for (let altCall = 0; altCall <= this.state.cardCount; altCall++) {
+            const altResult = this.makeCall(actualCurrentPlayer.id, altCall);
+            if (altResult.success) break;
+          }
+        }
+        // Continue processing if next player is also CPU or CPU-controlled
+        this.triggerNextCPUOrControlledTurn();
+      } else if (this.state.phase === "playing") {
+        if (actualCurrentPlayer.hand.length === 0) return;
+        const card = this.generateCPUCardPlay(actualCurrentPlayer);
+        const trickWasComplete = this.state.currentTrick.cards.length === this.state.players.length - 1;
+        const success = this.playCard(actualCurrentPlayer.id, card);
+        if (success && !trickWasComplete && this.state.phase === "playing") {
+          setTimeout(() => {
+            this.triggerNextCPUOrControlledTurn();
+          }, 500 * this.speedMultiplier);
+        }
+      }
+    }, (1000 + Math.random() * 500) * this.speedMultiplier);
+  }
+
+  // Check if next player needs CPU processing (either actual CPU or CPU-controlled)
+  private triggerNextCPUOrControlledTurn(): void {
+    const nextPlayer = this.state.players[this.state.currentPlayerIndex];
+    if (nextPlayer?.isCPU) {
+      this.processCPUTurns();
+    } else if (nextPlayer?.isCPUControlled) {
+      this.processCPUControlledTurn();
+    }
+  }
+
   playCard(playerId: string, card: Card): boolean {
     if (this.state.phase !== "playing") return false;
 
