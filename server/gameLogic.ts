@@ -671,6 +671,7 @@ export class Game {
       clearTimeout(this.cpuProcessingTimeout);
       this.cpuProcessingTimeout = null;
     }
+    console.log(`processCPUTurns: phase=${this.state.phase}, currentPlayerIndex=${this.state.currentPlayerIndex}, player=${this.state.players[this.state.currentPlayerIndex]?.name}, isCPU=${this.state.players[this.state.currentPlayerIndex]?.isCPU}, trickCards=${this.state.currentTrick.cards.length}`);
 
     if (this.state.phase !== "calling" && this.state.phase !== "playing") {
       return;
@@ -887,6 +888,23 @@ export class Game {
     }
   }
 
+  // Watchdog: ensure CPU processing is running when it should be
+  // Called periodically or on request_state to unstick frozen games
+  ensureCPUProcessing(): void {
+    if (!this.state.isSinglePlayer && !this.state.isOlympics) return;
+    if (this.state.phase !== "calling" && this.state.phase !== "playing") return;
+    // If there's already a timeout scheduled, don't interfere
+    if (this.cpuProcessingTimeout) return;
+    // Don't trigger if trick is complete (pending resolution)
+    if (this.state.currentTrick.cards.length === this.state.players.length) return;
+
+    const currentPlayer = this.state.players[this.state.currentPlayerIndex];
+    if (currentPlayer?.isCPU) {
+      console.log(`Watchdog: CPU ${currentPlayer.name} should be playing but no timeout scheduled, restarting processing`);
+      this.processCPUTurns();
+    }
+  }
+
   // Trigger CPU processing for a disconnected player who is now CPU-controlled
   triggerCPUProcessingForDisconnectedPlayer(): void {
     const currentPlayer = this.state.players[this.state.currentPlayerIndex];
@@ -1007,8 +1025,10 @@ export class Game {
       this.notifyStateUpdate();
 
       // Check if round is complete
+      console.log(`Trick complete: winner=${winner?.name}, trickNumber=${this.state.trickNumber}, cardCount=${this.state.cardCount}`);
       if (this.state.trickNumber >= this.state.cardCount) {
         // Round is over
+        console.log(`Round complete, scheduling endRound in ${2000 * this.speedMultiplier}ms`);
         setTimeout(() => {
           this.endRound();
           this.notifyStateUpdate();

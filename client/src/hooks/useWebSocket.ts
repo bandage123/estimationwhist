@@ -55,6 +55,7 @@ interface UseWebSocketReturn {
   brucieContinue: () => void;
   restoreSavedGame: (savedState: GameState, saveId: string) => void;
   minigameAcknowledge: () => void;
+  requestState: () => void;
 }
 
 // Session storage keys for reconnection
@@ -397,6 +398,12 @@ export function useWebSocket(): UseWebSocketReturn {
     setCpuReplacementVote(null);
   }, [sendMessage]);
 
+  const requestState = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "request_state" }));
+    }
+  }, []);
+
   return {
     gameState,
     playerId,
@@ -435,5 +442,6 @@ export function useWebSocket(): UseWebSocketReturn {
     brucieContinue,
     restoreSavedGame,
     minigameAcknowledge,
+    requestState,
   };
 }

@@ -417,6 +417,8 @@ export function setupWebSocket(server: Server): void {
                 state: game.getStateForPlayer(client.playerId),
                 playerId: client.playerId,
               });
+              // Watchdog: ensure CPU processing is running if it should be
+              game.ensureCPUProcessing();
             }
             break;
           }

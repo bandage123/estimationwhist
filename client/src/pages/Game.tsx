@@ -55,6 +55,7 @@ export default function Game() {
     brucieContinue,
     restoreSavedGame,
     minigameAcknowledge,
+    requestState,
     // Disconnection handling
     disconnectionNotification,
     cpuReplacementVote,
@@ -404,6 +405,28 @@ export default function Game() {
       }
     }
   }, [gameState, isMyTurn, notificationPermission]);
+
+  // Watchdog: if CPU should be playing but game seems stuck, request fresh state
+  // This triggers ensureCPUProcessing() on the server
+  useEffect(() => {
+    if (
+      !gameState ||
+      !gameState.isSinglePlayer ||
+      isMyTurn ||
+      (gameState.phase !== "calling" && gameState.phase !== "playing")
+    ) {
+      return;
+    }
+
+    // If it's not our turn in single player, CPUs should be acting
+    // If no state update comes within 10 seconds, poke the server
+    const watchdog = setTimeout(() => {
+      console.log("Watchdog: game appears stuck, requesting state to trigger CPU processing");
+      requestState();
+    }, 10000);
+
+    return () => clearTimeout(watchdog);
+  }, [gameState, isMyTurn, requestState]);
 
   // Handle Play Again
   const handlePlayAgain = () => {
