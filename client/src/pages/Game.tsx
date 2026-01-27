@@ -366,8 +366,7 @@ export default function Game() {
     // Clear session storage to prevent reconnect attempts to old game
     sessionStorage.removeItem('whist_player_id');
     sessionStorage.removeItem('whist_game_id');
-    // Clear auto-save since user explicitly left the game
-    clearAutoSave();
+    // Keep auto-save so user can resume from main menu
     window.location.reload();
   };
 

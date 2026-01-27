@@ -42,7 +42,11 @@ interface LobbyCreateProps {
 }
 
 export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOlympicsGame, onJoinGame, onRestoreSavedGame, isConnecting }: LobbyCreateProps) {
-  const [playerName, setPlayerName] = useState("");
+  const [playerName, setPlayerNameRaw] = useState(() => localStorage.getItem("whist_player_name") || "");
+  const setPlayerName = (name: string) => {
+    setPlayerNameRaw(name);
+    localStorage.setItem("whist_player_name", name);
+  };
   const [gameId, setGameId] = useState("");
   const [mode, setMode] = useState<"single" | "tournament" | "olympics" | "multi" | "join" | "saved" | null>(null);
   const [cpuCount, setCpuCount] = useState("3");
