@@ -61,7 +61,7 @@ export function PlayerHand({
   // Responsive card sizes: sm on mobile, md on desktop
   const cardWidthSm = 48; // w-12 = 48px
   const cardWidthMd = 64; // w-16 = 64px
-  const overlapFactor = cards.length > 5 ? 0.35 : 0.2;
+  const overlapFactor = cards.length > 5 ? 0.25 : 0.15;
   const totalWidthSm = cardWidthSm + (cards.length - 1) * cardWidthSm * (1 - overlapFactor);
   const totalWidthMd = cardWidthMd + (cards.length - 1) * cardWidthMd * (1 - overlapFactor);
 

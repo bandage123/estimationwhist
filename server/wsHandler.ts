@@ -609,9 +609,23 @@ export function setupWebSocket(server: Server): void {
               playerId: client.playerId,
             });
 
-            // If in playing or calling phase, trigger CPU processing
+            // Resume game processing based on current phase
             if (game.state.phase === "calling" || game.state.phase === "playing") {
-              game.triggerCPUProcessingIfNeeded();
+              // Check if there's a completed trick that needs to be resolved
+              // (game was saved during the 2s delay between tricks)
+              const trick = game.state.currentTrick;
+              const playerCount = game.state.players.length;
+              if (game.state.phase === "playing" && trick.cards.length === playerCount && trick.winnerId) {
+                // Trick was complete but not yet cleared - resolve it
+                game.resolveCompletedTrick();
+                sendToClient(ws, {
+                  type: "game_state",
+                  state: game.getStateForPlayer(client.playerId),
+                  playerId: client.playerId,
+                });
+              } else {
+                game.triggerCPUProcessingIfNeeded();
+              }
             }
             break;
           }

@@ -854,6 +854,24 @@ export class Game {
     return { success: true };
   }
 
+  // Resolve a completed trick that was pending when the game was saved
+  // (the 2s delay timeout was lost on save/restore)
+  resolveCompletedTrick(): void {
+    const trick = this.state.currentTrick;
+    if (trick.cards.length !== this.state.players.length || !trick.winnerId) return;
+
+    if (this.state.trickNumber >= this.state.cardCount) {
+      // Round is over
+      this.endRound();
+      this.notifyStateUpdate();
+    } else {
+      // Next trick
+      this.startNextTrick(trick.winnerId);
+      this.notifyStateUpdate();
+      this.processCPUTurns();
+    }
+  }
+
   // Public method to trigger CPU processing - called by wsHandler after human actions
   triggerCPUProcessingIfNeeded(): void {
     if (!this.state.isSinglePlayer && !this.state.isOlympics) {

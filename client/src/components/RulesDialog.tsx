@@ -69,8 +69,9 @@ export function RulesDialog({ gameFormat }: RulesDialogProps) {
             <section>
               <h3 className="font-semibold mb-1">Scoring</h3>
               <p className="text-muted-foreground">
-                Hit your bid: 10 + (bid × 2) points.<br />
-                Miss your bid: Lose 2 points per trick difference.
+                Hit your bid: 10 + tricks won.<br />
+                Over your bid: Just the tricks won (no bonus).<br />
+                Under your bid: 0 points.
               </p>
             </section>
 
