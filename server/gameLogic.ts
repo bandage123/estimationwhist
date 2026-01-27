@@ -63,6 +63,7 @@ export class Game {
   private onStateUpdate: StateUpdateCallback | null = null;
   private cpuProcessingTimeout: NodeJS.Timeout | null = null; // Track CPU processing timeout
   private speedMultiplier: number = 1; // 0.25 = very fast, 0.5 = fast, 1 = normal, 2 = slow
+  private lastCPUActionTime: number = 0; // Timestamp of last CPU action for watchdog
 
   constructor(hostName: string, hostId: string, isSinglePlayer: boolean = false, cpuCount: number = 0, gameFormat: GameFormat = "traditional") {
     this.state = {
@@ -696,6 +697,7 @@ export class Game {
         return;
       }
 
+      this.lastCPUActionTime = Date.now();
       if (this.state.phase === "calling") {
         // Keller format: CPU needs to make round 1 blind choice first
         if (this.state.gameFormat === "keller" && this.state.currentRound === 1 && this.state.kellerPlayerStates) {
@@ -842,6 +844,8 @@ export class Game {
       this.state.phase = "playing";
       // First player to play is player to the left of dealer
       this.state.currentPlayerIndex = (this.state.dealerIndex + 1) % this.state.players.length;
+      const firstPlayer = this.state.players[this.state.currentPlayerIndex];
+      console.log(`All called -> playing phase. First to play: ${firstPlayer?.name} (isCPU=${firstPlayer?.isCPU}, index=${this.state.currentPlayerIndex}, dealerIndex=${this.state.dealerIndex})`);
     } else {
       this.state.currentPlayerIndex = nextIndex;
     }
@@ -893,15 +897,25 @@ export class Game {
   ensureCPUProcessing(): void {
     if (!this.state.isSinglePlayer && !this.state.isOlympics) return;
     if (this.state.phase !== "calling" && this.state.phase !== "playing") return;
-    // If there's already a timeout scheduled, don't interfere
-    if (this.cpuProcessingTimeout) return;
+
+    const currentPlayer = this.state.players[this.state.currentPlayerIndex];
+    const timeSinceLastAction = Date.now() - this.lastCPUActionTime;
+    console.log(`Watchdog check: phase=${this.state.phase}, currentPlayer=${currentPlayer?.name}, isCPU=${currentPlayer?.isCPU}, hasTimeout=${!!this.cpuProcessingTimeout}, trickCards=${this.state.currentTrick.cards.length}/${this.state.players.length}, timeSinceLastAction=${timeSinceLastAction}ms`);
+
     // Don't trigger if trick is complete (pending resolution)
     if (this.state.currentTrick.cards.length === this.state.players.length) return;
 
-    const currentPlayer = this.state.players[this.state.currentPlayerIndex];
     if (currentPlayer?.isCPU) {
-      console.log(`Watchdog: CPU ${currentPlayer.name} should be playing but no timeout scheduled, restarting processing`);
-      this.processCPUTurns();
+      // If there's a timeout but it's been too long (>5s), it may be stale - clear and restart
+      if (this.cpuProcessingTimeout && timeSinceLastAction > 5000) {
+        console.log(`Watchdog: clearing stale timeout (${timeSinceLastAction}ms since last action)`);
+        clearTimeout(this.cpuProcessingTimeout);
+        this.cpuProcessingTimeout = null;
+      }
+      if (!this.cpuProcessingTimeout) {
+        console.log(`Watchdog: CPU ${currentPlayer.name} should be playing, restarting processing`);
+        this.processCPUTurns();
+      }
     }
   }
 
