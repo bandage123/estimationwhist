@@ -56,7 +56,26 @@ function sendError(ws: WebSocket, message: string): void {
 export function setupWebSocket(server: Server): void {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
+  // Heartbeat to keep connections alive and detect dead clients
+  const heartbeatInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if ((ws as any).isAlive === false) {
+        ws.terminate();
+        return;
+      }
+      (ws as any).isAlive = false;
+      ws.ping();
+    });
+  }, 30000); // Ping every 30 seconds
+
+  wss.on("close", () => {
+    clearInterval(heartbeatInterval);
+  });
+
   wss.on("connection", (ws: WebSocket) => {
+    (ws as any).isAlive = true;
+    ws.on("pong", () => { (ws as any).isAlive = true; });
+
     const playerId = randomUUID();
     clients.set(ws, { ws, playerId, gameId: null });
 

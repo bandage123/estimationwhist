@@ -877,6 +877,10 @@ export class Game {
     if (!this.state.isSinglePlayer && !this.state.isOlympics) {
       return;
     }
+    // Don't trigger if a completed trick is pending resolution (the playCard timeout handles it)
+    if (this.state.currentTrick.cards.length === this.state.players.length) {
+      return;
+    }
     const nextPlayer = this.state.players[this.state.currentPlayerIndex];
     if (nextPlayer?.isCPU) {
       this.processCPUTurns();
