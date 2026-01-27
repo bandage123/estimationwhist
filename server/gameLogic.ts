@@ -2335,6 +2335,27 @@ class GameManager {
       game.state.players[playerIndex].id = newPlayerId;
       game.state.players[playerIndex].isConnected = true;
 
+      // Update roundHistory player IDs
+      for (const round of game.state.roundHistory) {
+        for (const result of round.playerResults) {
+          if (result.playerId === oldPlayerId) {
+            result.playerId = newPlayerId;
+          }
+        }
+      }
+
+      // Update currentTrick player IDs
+      if (game.state.currentTrick) {
+        for (const trickCard of game.state.currentTrick.cards) {
+          if (trickCard.playerId === oldPlayerId) {
+            trickCard.playerId = newPlayerId;
+          }
+        }
+        if (game.state.currentTrick.winnerId === oldPlayerId) {
+          game.state.currentTrick.winnerId = newPlayerId;
+        }
+      }
+
       // Also update kellerPlayerStates if it exists
       if (game.state.kellerPlayerStates && game.state.kellerPlayerStates[oldPlayerId]) {
         game.state.kellerPlayerStates[newPlayerId] = game.state.kellerPlayerStates[oldPlayerId];

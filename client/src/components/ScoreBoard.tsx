@@ -107,6 +107,7 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
 
   roundHistory.forEach((round, idx) => {
     round.playerResults.forEach(result => {
+      if (!cumulativeScores[result.playerId]) cumulativeScores[result.playerId] = [];
       const prevScore = idx > 0 ? (cumulativeScores[result.playerId][idx - 1] || 0) : 0;
       cumulativeScores[result.playerId][idx] = prevScore + result.roundScore;
     });
@@ -201,6 +202,7 @@ export function FinalScoreBoard({ players, roundHistory, onReturnToMenu, onPlayA
 
   roundHistory.forEach((round, idx) => {
     round.playerResults.forEach(result => {
+      if (!cumulativeScores[result.playerId]) cumulativeScores[result.playerId] = [];
       const prevScore = idx > 0 ? (cumulativeScores[result.playerId][idx - 1] || 0) : 0;
       cumulativeScores[result.playerId][idx] = prevScore + result.roundScore;
     });
