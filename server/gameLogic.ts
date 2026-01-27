@@ -2378,13 +2378,25 @@ class GameManager {
       game.state.players[playerIndex].id = newPlayerId;
       game.state.players[playerIndex].isConnected = true;
 
+      console.log(`[RESTORE] Remapping player ID: ${oldPlayerId} -> ${newPlayerId}, roundHistory has ${game.state.roundHistory.length} rounds`);
+
       // Update roundHistory player IDs
+      let remappedCount = 0;
       for (const round of game.state.roundHistory) {
         for (const result of round.playerResults) {
           if (result.playerId === oldPlayerId) {
             result.playerId = newPlayerId;
+            remappedCount++;
           }
         }
+      }
+      console.log(`[RESTORE] Remapped ${remappedCount} roundHistory entries`);
+
+      // Log all player IDs in roundHistory for debugging
+      if (game.state.roundHistory.length > 0) {
+        const firstRound = game.state.roundHistory[0];
+        console.log(`[RESTORE] Round 1 playerResults IDs: ${firstRound.playerResults.map(r => r.playerId).join(', ')}`);
+        console.log(`[RESTORE] Current player IDs: ${game.state.players.map(p => p.id).join(', ')}`);
       }
 
       // Update currentTrick player IDs

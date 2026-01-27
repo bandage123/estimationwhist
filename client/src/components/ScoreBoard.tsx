@@ -145,7 +145,8 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
                     </div>
                   </td>
                   {players.map(player => {
-                    const result = round.playerResults.find(r => r.playerId === player.id);
+                    const result = round.playerResults.find(r => r.playerId === player.id)
+                      || round.playerResults.find(r => r.playerName === player.name);
                     if (!result) {
                       return (
                         <td key={player.id} className="text-center py-0">-</td>
@@ -153,7 +154,8 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
                     }
                     const hit = result.tricksWon === result.call;
                     const missed = result.tricksWon !== result.call;
-                    const cumulativeScore = cumulativeScores[player.id][roundIdx];
+                    const cumulativeScore = cumulativeScores[result.playerId]?.[roundIdx]
+                      ?? cumulativeScores[player.id]?.[roundIdx];
 
                     return (
                       <td
@@ -169,7 +171,7 @@ function RoundHistoryTable({ players, roundHistory }: RoundHistoryTableProps) {
                           hit && "text-green-600 dark:text-green-400 font-medium",
                           missed && "text-red-600 dark:text-red-400"
                         )}>
-                          {result.call}/{cumulativeScore}
+                          {result.call}/{cumulativeScore ?? 0}
                         </span>
                       </td>
                     );
@@ -276,7 +278,8 @@ export function FinalScoreBoard({ players, roundHistory, onReturnToMenu, onPlayA
                         </div>
                       </td>
                       {sortedPlayers.map(player => {
-                        const result = round.playerResults.find(r => r.playerId === player.id);
+                        const result = round.playerResults.find(r => r.playerId === player.id)
+                          || round.playerResults.find(r => r.playerName === player.name);
                         if (!result) {
                           return (
                             <td key={player.id} className="text-center py-0.5">-</td>
@@ -284,7 +287,8 @@ export function FinalScoreBoard({ players, roundHistory, onReturnToMenu, onPlayA
                         }
                         const hit = result.tricksWon === result.call;
                         const missed = result.tricksWon !== result.call;
-                        const cumulativeScore = cumulativeScores[player.id][roundIdx];
+                        const cumulativeScore = cumulativeScores[result.playerId]?.[roundIdx]
+                          ?? cumulativeScores[player.id]?.[roundIdx] ?? 0;
 
                         return (
                           <td
