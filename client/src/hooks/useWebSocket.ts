@@ -101,10 +101,14 @@ export function useWebSocket(): UseWebSocketReturn {
       setIsConnecting(false);
 
       // Check for stored session to attempt reconnection (sessionStorage first, then localStorage for multiplayer)
+      const suppressReconnect = sessionStorage.getItem('whist_suppress_reconnect');
+      if (suppressReconnect) {
+        sessionStorage.removeItem('whist_suppress_reconnect');
+      }
       const storedPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY) || localStorage.getItem(LOCAL_PLAYER_ID_KEY);
       const storedGameId = sessionStorage.getItem(SESSION_GAME_ID_KEY) || localStorage.getItem(LOCAL_GAME_ID_KEY);
 
-      if (storedPlayerId && storedGameId && !reconnectAttemptedRef.current) {
+      if (storedPlayerId && storedGameId && !reconnectAttemptedRef.current && !suppressReconnect) {
         reconnectAttemptedRef.current = true;
         console.log(`Attempting to reconnect: playerId=${storedPlayerId}, gameId=${storedGameId}`);
         ws.send(JSON.stringify({

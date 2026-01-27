@@ -363,11 +363,12 @@ export default function Game() {
   }, [gameState?.phase, gameState?.id, gameState?.isSinglePlayer, gameState?.isOlympics, gameState?.gameFormat, gameState?.players, gameState?.roundHistory, currentPlayer, toast]);
 
   const handleReturnToMenu = () => {
-    // Clear session/local storage to prevent reconnect attempts to old game
+    // Clear session storage to prevent auto-reconnect on page load
     sessionStorage.removeItem('whist_player_id');
     sessionStorage.removeItem('whist_game_id');
-    localStorage.removeItem('whist_mp_player_id');
-    localStorage.removeItem('whist_mp_game_id');
+    // Suppress auto-reconnect so user lands in lobby with rejoin option
+    sessionStorage.setItem('whist_suppress_reconnect', 'true');
+    // Keep localStorage multiplayer IDs so user can manually rejoin from lobby
     // Keep auto-save so user can resume from main menu
     window.location.reload();
   };

@@ -56,6 +56,9 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
   const [savedGames, setSavedGames] = useState<SavedGame[]>([]);
   const [autoSavedGame, setAutoSavedGame] = useState<SavedGame | null>(null);
 
+  // Check if there's a multiplayer game to rejoin
+  const [multiplayerRejoin, setMultiplayerRejoin] = useState<{ playerId: string; gameId: string } | null>(null);
+
   // Load saved games and auto-saved game on mount
   useEffect(() => {
     if (mode === "saved" || mode === null) {
@@ -68,6 +71,12 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
     if (autoSave && !playerName) {
       setPlayerName(autoSave.playerName);
     }
+    // Check for multiplayer game to rejoin
+    const mpPlayerId = localStorage.getItem('whist_mp_player_id');
+    const mpGameId = localStorage.getItem('whist_mp_game_id');
+    if (mpPlayerId && mpGameId) {
+      setMultiplayerRejoin({ playerId: mpPlayerId, gameId: mpGameId });
+    }
   }, [mode]);
 
   const handleDismissAutoSave = () => {
@@ -79,6 +88,21 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
     if (autoSavedGame) {
       onRestoreSavedGame(autoSavedGame.gameState, autoSavedGame.id);
     }
+  };
+
+  const handleRejoinMultiplayer = () => {
+    if (multiplayerRejoin) {
+      // Set sessionStorage so the auto-reconnect fires on reload
+      sessionStorage.setItem('whist_player_id', multiplayerRejoin.playerId);
+      sessionStorage.setItem('whist_game_id', multiplayerRejoin.gameId);
+      window.location.reload();
+    }
+  };
+
+  const handleDismissRejoin = () => {
+    localStorage.removeItem('whist_mp_player_id');
+    localStorage.removeItem('whist_mp_game_id');
+    setMultiplayerRejoin(null);
   };
 
   const handleDeleteSave = (id: string) => {
@@ -132,6 +156,36 @@ export function LobbyCreate({ onCreateGame, onCreateSinglePlayerGame, onCreateOl
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Multiplayer rejoin banner */}
+          {multiplayerRejoin && (
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <Users className="w-4 h-4" />
+                  <span className="text-sm font-medium">Multiplayer game in progress</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={handleDismissRejoin}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Game code: {multiplayerRejoin.gameId}
+              </p>
+              <Button
+                className="w-full gap-2"
+                onClick={handleRejoinMultiplayer}
+              >
+                <Users className="w-4 h-4" />
+                Rejoin Game
+              </Button>
+            </div>
+          )}
+
           {/* Auto-saved game resume banner */}
           {autoSavedGame && (
             <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 space-y-2">
