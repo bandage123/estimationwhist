@@ -936,6 +936,25 @@ export default function Game() {
     );
   }
 
+  // Safety net: if we have game state but can't find our player, show recovery UI
+  if (!currentPlayer && (gameState.phase === "calling" || gameState.phase === "playing")) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 p-6">
+          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto" />
+          <h2 className="text-lg font-semibold">Unable to load game</h2>
+          <p className="text-sm text-muted-foreground">
+            Your session could not be restored properly.
+          </p>
+          <Button onClick={handleReturnToMenu} className="gap-2">
+            <Home className="w-4 h-4" />
+            Return to Menu
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Main game layout for calling and playing phases
   // Always show scoreboard on left, gameplay on right
   return (

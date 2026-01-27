@@ -77,9 +77,10 @@ export function useWebSocket(): UseWebSocketReturn {
   const pendingMessageRef = useRef<ClientMessage | null>(null);
   const reconnectAttemptedRef = useRef<boolean>(false);
   const votedPlayersRef = useRef<Set<string>>(new Set()); // Track players we've voted on
+  const pendingSaveDeleteRef = useRef<string | null>(null); // Save ID to delete after successful restore
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
       return;
     }
 
@@ -131,6 +132,7 @@ export function useWebSocket(): UseWebSocketReturn {
             sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
             break;
           case "game_state":
+            console.log(`Received game_state: phase=${message.state.phase}, playerId=${message.playerId}, players=${message.state.players.map(p => p.id).join(',')}`);
             setGameState(message.state);
             setPlayerId(message.playerId);
             if (!gameId) {
@@ -141,6 +143,11 @@ export function useWebSocket(): UseWebSocketReturn {
             sessionStorage.setItem(SESSION_GAME_ID_KEY, message.state.id);
             // Clear reconnect flag on successful state receive
             reconnectAttemptedRef.current = false;
+            // Delete saved game only after successful restore
+            if (pendingSaveDeleteRef.current) {
+              deleteSavedGame(pendingSaveDeleteRef.current);
+              pendingSaveDeleteRef.current = null;
+            }
             break;
           case "error":
             // If reconnect failed, silently clear stored session and game state
@@ -227,7 +234,9 @@ export function useWebSocket(): UseWebSocketReturn {
     };
   }, [gameId, playerId]);
 
+  // Auto-connect on mount so WebSocket is ready before user actions
   useEffect(() => {
+    connect();
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -257,8 +266,12 @@ export function useWebSocket(): UseWebSocketReturn {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
     } else {
+      // Queue message - will be sent when socket opens (or reconnects)
       pendingMessageRef.current = message;
-      connect();
+      if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED || wsRef.current.readyState === WebSocket.CLOSING) {
+        connect();
+      }
+      // If CONNECTING, the existing onopen handler will pick up the pending message
     }
   }, [connect]);
 
@@ -362,9 +375,10 @@ export function useWebSocket(): UseWebSocketReturn {
     sessionStorage.removeItem(SESSION_GAME_ID_KEY);
     reconnectAttemptedRef.current = false;
 
+    // Defer save deletion until we get a successful game_state response
+    pendingSaveDeleteRef.current = saveId;
+    console.log(`Restoring saved game: phase=${savedState.phase}, round=${savedState.currentRound}, wsReady=${wsRef.current?.readyState}`);
     sendMessage({ type: "restore_saved_game", savedState });
-    // Delete the save after restoring (it will be re-saved if user saves again)
-    deleteSavedGame(saveId);
   }, [sendMessage]);
 
   const minigameAcknowledge = useCallback(() => {
