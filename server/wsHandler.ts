@@ -423,6 +423,17 @@ export function setupWebSocket(server: Server): void {
             break;
           }
 
+          case "request_save_state": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (game) {
+              sendToClient(ws, {
+                type: "save_state",
+                state: game.getFullState(),
+              });
+            }
+            break;
+          }
+
           // Keller format actions
           case "start_blind_rounds": {
             const game = gameManager.getGameForPlayer(client.playerId);

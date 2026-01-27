@@ -56,6 +56,7 @@ export default function Game() {
     restoreSavedGame,
     minigameAcknowledge,
     requestState,
+    requestSaveState,
     // Disconnection handling
     disconnectionNotification,
     cpuReplacementVote,
@@ -87,14 +88,25 @@ export default function Game() {
     if (!gameState || !playerId) return;
     try {
       setSaveStatus("saving");
-      saveGame(gameState, playerId);
-      setSaveStatus("saved");
-      toast({
-        title: "Game Saved",
-        description: "You can continue from the main menu.",
+      // Request full unmasked state from server so CPU hands are preserved
+      requestSaveState((fullState) => {
+        try {
+          saveGame(fullState, playerId);
+          setSaveStatus("saved");
+          toast({
+            title: "Game Saved",
+            description: "You can continue from the main menu.",
+          });
+          setTimeout(() => setSaveStatus("idle"), 2000);
+        } catch (e) {
+          toast({
+            title: "Save Failed",
+            description: "Could not save the game.",
+            variant: "destructive",
+          });
+          setSaveStatus("idle");
+        }
       });
-      // Reset status after 2 seconds
-      setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (e) {
       toast({
         title: "Save Failed",
@@ -278,17 +290,21 @@ export default function Game() {
   }, [gameState?.phase, gameState?.id, gameState?.gameFormat, currentPlayer]);
 
   // Auto-save game state for single player and Olympics games
+  // Request full unmasked state from server so CPU hands are preserved
   useEffect(() => {
     if (gameState && playerId && (gameState.isSinglePlayer || gameState.isOlympics)) {
-      // Auto-save on every state change (debounced by React's batching)
-      autoSaveGame(gameState, playerId);
-
       // Clear auto-save when game ends
       if (gameState.phase === "game_end") {
         clearAutoSave();
+        return;
       }
+
+      // Request full state from server for saving (CPU hands are masked in client state)
+      requestSaveState((fullState) => {
+        autoSaveGame(fullState, playerId);
+      });
     }
-  }, [gameState, playerId]);
+  }, [gameState, playerId, requestSaveState]);
 
   // Record high score and log game completion when game ends (all game types for human players)
   const highScoreRecordedRef = useRef<string | null>(null);

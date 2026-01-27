@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat } from "@shared/schema";
-import { deleteSavedGame } from "@/lib/savedGames";
+import { deleteSavedGame, saveGame, autoSaveGame } from "@/lib/savedGames";
 
 // Disconnection notification state
 interface DisconnectionNotification {
@@ -56,6 +56,7 @@ interface UseWebSocketReturn {
   restoreSavedGame: (savedState: GameState, saveId: string) => void;
   minigameAcknowledge: () => void;
   requestState: () => void;
+  requestSaveState: (callback: (fullState: GameState) => void) => void;
 }
 
 // Session storage keys for reconnection
@@ -79,6 +80,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const reconnectAttemptedRef = useRef<boolean>(false);
   const votedPlayersRef = useRef<Set<string>>(new Set()); // Track players we've voted on
   const pendingSaveDeleteRef = useRef<string | null>(null); // Save ID to delete after successful restore
+  const saveStateCallbackRef = useRef<((state: GameState) => void) | null>(null);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
@@ -195,6 +197,12 @@ export function useWebSocket(): UseWebSocketReturn {
                 votesNeeded: message.votesNeeded,
                 currentVotes: message.currentVotes
               });
+            }
+            break;
+          case "save_state":
+            if (saveStateCallbackRef.current) {
+              saveStateCallbackRef.current(message.state);
+              saveStateCallbackRef.current = null;
             }
             break;
           case "cpu_replacement_activated":
@@ -404,6 +412,13 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, []);
 
+  const requestSaveState = useCallback((callback: (fullState: GameState) => void) => {
+    saveStateCallbackRef.current = callback;
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "request_save_state" }));
+    }
+  }, []);
+
   return {
     gameState,
     playerId,
@@ -443,5 +458,6 @@ export function useWebSocket(): UseWebSocketReturn {
     restoreSavedGame,
     minigameAcknowledge,
     requestState,
+    requestSaveState,
   };
 }

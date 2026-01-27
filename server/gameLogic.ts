@@ -2107,6 +2107,11 @@ export class Game {
     }
   }
 
+  // Get full unmasked state (for saving)
+  getFullState(): GameState {
+    return JSON.parse(JSON.stringify(this.state)) as GameState;
+  }
+
   // Get state for a specific player (hide other players' hands)
   getStateForPlayer(playerId: string): GameState {
     const state = JSON.parse(JSON.stringify(this.state)) as GameState;

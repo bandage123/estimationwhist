@@ -215,6 +215,7 @@ export type ClientMessage =
   | { type: "skip_brucie" }
   | { type: "brucie_continue" }
   | { type: "restore_saved_game"; savedState: GameState }
+  | { type: "request_save_state" }
   | { type: "minigame_acknowledge" }  // Acknowledge seeing result, continue to next action
   // Multiplayer disconnection handling
   | { type: "vote_cpu_replacement"; disconnectedPlayerId: string; vote: boolean };
@@ -230,7 +231,8 @@ export type ServerMessage =
   | { type: "player_disconnected"; playerName: string; playerId: string }
   | { type: "player_reconnected"; playerName: string; playerId: string }
   | { type: "cpu_replacement_vote_update"; disconnectedPlayerId: string; disconnectedPlayerName: string; votesNeeded: number; currentVotes: number }
-  | { type: "cpu_replacement_activated"; playerName: string };
+  | { type: "cpu_replacement_activated"; playerName: string }
+  | { type: "save_state"; state: GameState };
 
 // Validation schemas
 export const createGameSchema = z.object({
