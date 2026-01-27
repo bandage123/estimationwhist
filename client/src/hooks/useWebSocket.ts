@@ -62,6 +62,8 @@ interface UseWebSocketReturn {
 // Session storage keys for reconnection
 const SESSION_PLAYER_ID_KEY = 'whist_player_id';
 const SESSION_GAME_ID_KEY = 'whist_game_id';
+const LOCAL_PLAYER_ID_KEY = 'whist_mp_player_id';
+const LOCAL_GAME_ID_KEY = 'whist_mp_game_id';
 
 export function useWebSocket(): UseWebSocketReturn {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -98,9 +100,9 @@ export function useWebSocket(): UseWebSocketReturn {
       setIsConnected(true);
       setIsConnecting(false);
 
-      // Check for stored session to attempt reconnection
-      const storedPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY);
-      const storedGameId = sessionStorage.getItem(SESSION_GAME_ID_KEY);
+      // Check for stored session to attempt reconnection (sessionStorage first, then localStorage for multiplayer)
+      const storedPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY) || localStorage.getItem(LOCAL_PLAYER_ID_KEY);
+      const storedGameId = sessionStorage.getItem(SESSION_GAME_ID_KEY) || localStorage.getItem(LOCAL_GAME_ID_KEY);
 
       if (storedPlayerId && storedGameId && !reconnectAttemptedRef.current) {
         reconnectAttemptedRef.current = true;
@@ -128,11 +130,16 @@ export function useWebSocket(): UseWebSocketReturn {
             // Store for reconnection
             sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
             sessionStorage.setItem(SESSION_GAME_ID_KEY, message.gameId);
+            // Also persist to localStorage for multiplayer tab-close recovery
+            localStorage.setItem(LOCAL_PLAYER_ID_KEY, message.playerId);
+            localStorage.setItem(LOCAL_GAME_ID_KEY, message.gameId);
             break;
           case "game_joined":
             setPlayerId(message.playerId);
             // Store for reconnection
             sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
+            // Also persist to localStorage for multiplayer tab-close recovery
+            localStorage.setItem(LOCAL_PLAYER_ID_KEY, message.playerId);
             break;
           case "game_state":
             console.log(`Received game_state: phase=${message.state.phase}, playerId=${message.playerId}, players=${message.state.players.map(p => p.id).join(',')}`);
@@ -144,6 +151,8 @@ export function useWebSocket(): UseWebSocketReturn {
             // Store for reconnection
             sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
             sessionStorage.setItem(SESSION_GAME_ID_KEY, message.state.id);
+            localStorage.setItem(LOCAL_PLAYER_ID_KEY, message.playerId);
+            localStorage.setItem(LOCAL_GAME_ID_KEY, message.state.id);
             // Clear reconnect flag on successful state receive
             reconnectAttemptedRef.current = false;
             // Delete saved game only after successful restore
@@ -158,6 +167,8 @@ export function useWebSocket(): UseWebSocketReturn {
             if (message.message.includes("Could not reconnect")) {
               sessionStorage.removeItem(SESSION_PLAYER_ID_KEY);
               sessionStorage.removeItem(SESSION_GAME_ID_KEY);
+              localStorage.removeItem(LOCAL_PLAYER_ID_KEY);
+              localStorage.removeItem(LOCAL_GAME_ID_KEY);
               reconnectAttemptedRef.current = false;
               // Clear stale game state to return to lobby
               setGameState(null);
@@ -226,9 +237,9 @@ export function useWebSocket(): UseWebSocketReturn {
       setIsConnecting(false);
       wsRef.current = null;
 
-      // Attempt to reconnect if we had a game (check both state and storage)
-      const storedPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY);
-      const storedGameId = sessionStorage.getItem(SESSION_GAME_ID_KEY);
+      // Attempt to reconnect if we had a game (check state, sessionStorage, and localStorage)
+      const storedPlayerId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY) || localStorage.getItem(LOCAL_PLAYER_ID_KEY);
+      const storedGameId = sessionStorage.getItem(SESSION_GAME_ID_KEY) || localStorage.getItem(LOCAL_GAME_ID_KEY);
       if ((gameId && playerId) || (storedPlayerId && storedGameId)) {
         reconnectAttemptedRef.current = false; // Reset so we can try reconnect again
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -379,9 +390,11 @@ export function useWebSocket(): UseWebSocketReturn {
   }, [sendMessage]);
 
   const restoreSavedGame = useCallback((savedState: GameState, saveId: string) => {
-    // Clear old session storage to prevent reconnect from taking priority over restore
+    // Clear old storage to prevent reconnect from taking priority over restore
     sessionStorage.removeItem(SESSION_PLAYER_ID_KEY);
     sessionStorage.removeItem(SESSION_GAME_ID_KEY);
+    localStorage.removeItem(LOCAL_PLAYER_ID_KEY);
+    localStorage.removeItem(LOCAL_GAME_ID_KEY);
     reconnectAttemptedRef.current = false;
 
     // Defer save deletion until we get a successful game_state response
