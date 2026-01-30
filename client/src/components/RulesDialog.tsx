@@ -118,9 +118,8 @@ export function RulesDialog({ gameFormat }: RulesDialogProps) {
                 <section>
                   <h3 className="font-semibold mb-1">Brucie Bonus (After Round 12)</h3>
                   <p className="text-muted-foreground">
-                    Higher/Lower game for your final round multiplier. Default is 2x.
-                    Get 1 right = 2x, 2 right = 2.5x, 3 right = 3x. Get one wrong = 1x.
-                    You can skip to keep the default 2x.
+                    Higher/Lower game for your final round multiplier. Skip to get the safe 2x multiplier.
+                    If you play, each correct guess adds 1x to your multiplier (starting from 1x), up to a maximum of 3x.
                   </p>
                 </section>
               </>
