@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat, ChatMessage } from "@shared/schema";
+import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat, ChatMessage, ProvisionalSuggestion } from "@shared/schema";
 import { deleteSavedGame, saveGame, autoSaveGame } from "@/lib/savedGames";
 
 // Disconnection notification state
@@ -62,6 +62,10 @@ interface UseWebSocketReturn {
   unreadChatCount: number;
   sendChat: (text: string) => void;
   clearUnreadChat: () => void;
+  // Multiplayer provisionals
+  provisionalSuggestions: ProvisionalSuggestion[];
+  suggestProvisional: (targetId: string, reason: string) => void;
+  voteProvisional: (suggestionId: string, vote: boolean) => void;
 }
 
 // Session storage keys for reconnection
@@ -83,6 +87,8 @@ export function useWebSocket(): UseWebSocketReturn {
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+  // Provisional state
+  const [provisionalSuggestions, setProvisionalSuggestions] = useState<ProvisionalSuggestion[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -177,6 +183,10 @@ export function useWebSocket(): UseWebSocketReturn {
             if (message.state.chatMessages) {
               setChatMessages(message.state.chatMessages);
             }
+            // Sync provisional suggestions from game state (for reconnection)
+            if (message.state.provisionalSuggestions) {
+              setProvisionalSuggestions(message.state.provisionalSuggestions);
+            }
             break;
           case "error":
             // If reconnect failed, silently clear stored session and game state
@@ -246,6 +256,17 @@ export function useWebSocket(): UseWebSocketReturn {
           case "chat_message":
             setChatMessages(prev => [...prev, message.message]);
             setUnreadChatCount(prev => prev + 1);
+            break;
+          case "provisional_suggested":
+            setProvisionalSuggestions(prev => [...prev, message.suggestion]);
+            break;
+          case "provisional_vote_update":
+            setProvisionalSuggestions(prev =>
+              prev.map(s => s.id === message.suggestion.id ? message.suggestion : s)
+            );
+            break;
+          case "provisional_applied":
+            // Could show a toast here if desired
             break;
         }
       } catch (e) {
@@ -462,6 +483,15 @@ export function useWebSocket(): UseWebSocketReturn {
     setUnreadChatCount(0);
   }, []);
 
+  // Provisional functions
+  const suggestProvisional = useCallback((targetId: string, reason: string) => {
+    sendMessage({ type: "suggest_provisional", targetId, reason });
+  }, [sendMessage]);
+
+  const voteProvisional = useCallback((suggestionId: string, vote: boolean) => {
+    sendMessage({ type: "vote_provisional", suggestionId, vote });
+  }, [sendMessage]);
+
   return {
     gameState,
     playerId,
@@ -507,5 +537,9 @@ export function useWebSocket(): UseWebSocketReturn {
     unreadChatCount,
     sendChat,
     clearUnreadChat,
+    // Multiplayer provisionals
+    provisionalSuggestions,
+    suggestProvisional,
+    voteProvisional,
   };
 }

@@ -27,6 +27,7 @@ export interface Player {
   isBlindCalling?: boolean; // Keller: true when player is calling blind this round
   disconnectedAt?: string; // ISO timestamp when player disconnected (for multiplayer)
   isCPUControlled?: boolean; // True when a human player is being played by CPU (voted replacement)
+  provisionals?: number; // Number of provisionals received (penalty squared at game end)
 }
 
 export interface Trick {
@@ -152,6 +153,21 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+// Provisional suggestion for multiplayer
+export interface ProvisionalSuggestion {
+  id: string;
+  suggesterId: string;
+  suggesterName: string;
+  targetId: string;
+  targetName: string;
+  reason: string;
+  timestamp: string;
+  votesFor: string[]; // player IDs who voted thumbs up
+  votesAgainst: string[]; // player IDs who voted thumbs down
+  resolved: boolean; // true if majority reached (either way)
+  applied: boolean; // true if provisional was applied
+}
+
 export interface GameState {
   id: string;
   phase: GamePhase;
@@ -180,6 +196,8 @@ export interface GameState {
   cpuReplacementVotes?: Record<string, string[]>; // disconnectedPlayerId -> array of voter playerIds who voted yes
   // Multiplayer chat
   chatMessages?: ChatMessage[];
+  // Multiplayer provisionals
+  provisionalSuggestions?: ProvisionalSuggestion[];
 }
 
 export interface RoundResult {
@@ -231,7 +249,10 @@ export type ClientMessage =
   // Multiplayer disconnection handling
   | { type: "vote_cpu_replacement"; disconnectedPlayerId: string; vote: boolean }
   // Multiplayer chat
-  | { type: "send_chat"; text: string };
+  | { type: "send_chat"; text: string }
+  // Multiplayer provisionals
+  | { type: "suggest_provisional"; targetId: string; reason: string }
+  | { type: "vote_provisional"; suggestionId: string; vote: boolean };
 
 export type ServerMessage =
   | { type: "game_created"; gameId: string; playerId: string }
@@ -247,7 +268,11 @@ export type ServerMessage =
   | { type: "cpu_replacement_activated"; playerName: string }
   | { type: "save_state"; state: GameState }
   // Multiplayer chat
-  | { type: "chat_message"; message: ChatMessage };
+  | { type: "chat_message"; message: ChatMessage }
+  // Multiplayer provisionals
+  | { type: "provisional_suggested"; suggestion: ProvisionalSuggestion }
+  | { type: "provisional_vote_update"; suggestion: ProvisionalSuggestion }
+  | { type: "provisional_applied"; targetName: string; reason: string };
 
 // Validation schemas
 export const createGameSchema = z.object({

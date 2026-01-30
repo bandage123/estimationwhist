@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Trophy, Crown, Target, X, Home, RotateCcw } from "lucide-react";
+import { Trophy, Crown, Target, X, Home, RotateCcw, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ScoreBoardProps {
@@ -63,6 +63,12 @@ export function ScoreBoard({
               <div className="flex items-center gap-0.5 min-w-0">
                 {index === 0 && player.score > 0 && (
                   <Crown className="w-2.5 h-2.5 text-primary shrink-0" />
+                )}
+                {player.provisionals && player.provisionals > 0 && (
+                  <span className="flex items-center text-yellow-500 shrink-0" title={`${player.provisionals} provisional${player.provisionals > 1 ? 's' : ''} (-${player.provisionals * player.provisionals} at game end)`}>
+                    <AlertTriangle className="w-2.5 h-2.5" />
+                    <span className="text-[8px]">{player.provisionals}</span>
+                  </span>
                 )}
                 <span className="font-medium truncate" title={player.name}>{getDisplayName(player.name)}</span>
                 {player.isDealer && (
@@ -243,6 +249,15 @@ export function FinalScoreBoard({ players, roundHistory, onReturnToMenu, onPlayA
                 {index + 1}
               </span>
               <span className="font-medium">{player.name}</span>
+              {player.provisionals && player.provisionals > 0 && (
+                <span className={cn(
+                  "flex items-center gap-0.5 text-xs",
+                  index === 0 ? "text-yellow-300" : "text-yellow-500"
+                )} title={`${player.provisionals} provisional${player.provisionals > 1 ? 's' : ''} (-${player.provisionals * player.provisionals})`}>
+                  <AlertTriangle className="w-3 h-3" />
+                  {player.provisionals}
+                </span>
+              )}
             </div>
             <span className="text-xl font-bold">{player.score}</span>
           </div>

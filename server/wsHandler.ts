@@ -788,6 +788,64 @@ export function setupWebSocket(server: Server): void {
             }
             break;
           }
+
+          case "suggest_provisional": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            const suggestion = game.suggestProvisional(client.playerId, message.targetId, message.reason);
+            if (suggestion) {
+              // Broadcast the suggestion to all players in the game
+              const gameClients = Array.from(clients.entries())
+                .filter(([_, c]) => c.gameId === game.state.id);
+              for (const [clientWs] of gameClients) {
+                sendToClient(clientWs, {
+                  type: "provisional_suggested",
+                  suggestion,
+                });
+              }
+            }
+            break;
+          }
+
+          case "vote_provisional": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            const result = game.voteProvisional(client.playerId, message.suggestionId, message.vote);
+            if (result) {
+              const gameClients = Array.from(clients.entries())
+                .filter(([_, c]) => c.gameId === game.state.id);
+
+              // Broadcast vote update
+              for (const [clientWs] of gameClients) {
+                sendToClient(clientWs, {
+                  type: "provisional_vote_update",
+                  suggestion: result.suggestion,
+                });
+              }
+
+              // If provisional was applied, also broadcast that
+              if (result.applied) {
+                for (const [clientWs] of gameClients) {
+                  sendToClient(clientWs, {
+                    type: "provisional_applied",
+                    targetName: result.suggestion.targetName,
+                    reason: result.suggestion.reason,
+                  });
+                }
+                // Also broadcast updated game state so scores reflect the provisional
+                broadcastToGame(game);
+              }
+            }
+            break;
+          }
         }
       } catch (error) {
         console.error("WebSocket message error:", error);

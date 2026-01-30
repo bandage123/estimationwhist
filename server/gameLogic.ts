@@ -17,6 +17,7 @@ import {
   HaloMinigameState,
   BrucieBonusState,
   ChatMessage,
+  ProvisionalSuggestion,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateOlympicsPlayers, generateMatchReport, generateChampionQuote } from "@shared/olympicsData";
@@ -92,9 +93,10 @@ export class Game {
       }
     }
 
-    // Initialize chat for multiplayer games
+    // Initialize chat and provisionals for multiplayer games
     if (!isSinglePlayer) {
       this.state.chatMessages = [];
+      this.state.provisionalSuggestions = [];
     }
 
     // Initialize Keller state if using Keller format
@@ -1193,7 +1195,13 @@ export class Game {
     if (this.state.phase !== "round_end") return;
 
     if (this.state.currentRound >= 13) {
-      // Game is over
+      // Game is over - apply provisional penalties (squared)
+      for (const player of this.state.players) {
+        if (player.provisionals && player.provisionals > 0) {
+          const penalty = player.provisionals * player.provisionals;
+          player.score -= penalty;
+        }
+      }
       this.state.phase = "game_end";
       return;
     }
@@ -2145,6 +2153,83 @@ export class Game {
     }
 
     return message;
+  }
+
+  // Suggest a provisional against a player (multiplayer only)
+  suggestProvisional(suggesterId: string, targetId: string, reason: string): ProvisionalSuggestion | null {
+    if (this.state.isSinglePlayer || !this.state.provisionalSuggestions) return null;
+
+    const suggester = this.state.players.find(p => p.id === suggesterId);
+    const target = this.state.players.find(p => p.id === targetId);
+    if (!suggester || !target) return null;
+
+    // Can't suggest against yourself
+    if (suggesterId === targetId) return null;
+
+    // Sanitize and limit reason length
+    const sanitizedReason = reason.trim().slice(0, 200);
+    if (!sanitizedReason) return null;
+
+    const suggestion: ProvisionalSuggestion = {
+      id: randomUUID(),
+      suggesterId,
+      suggesterName: suggester.name,
+      targetId,
+      targetName: target.name,
+      reason: sanitizedReason,
+      timestamp: new Date().toISOString(),
+      votesFor: [suggesterId], // Suggester automatically votes for
+      votesAgainst: [],
+      resolved: false,
+      applied: false,
+    };
+
+    this.state.provisionalSuggestions.push(suggestion);
+    return suggestion;
+  }
+
+  // Vote on a provisional suggestion
+  voteProvisional(playerId: string, suggestionId: string, vote: boolean): { suggestion: ProvisionalSuggestion; applied: boolean } | null {
+    if (this.state.isSinglePlayer || !this.state.provisionalSuggestions) return null;
+
+    const suggestion = this.state.provisionalSuggestions.find(s => s.id === suggestionId);
+    if (!suggestion || suggestion.resolved) return null;
+
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return null;
+
+    // Remove any existing vote from this player
+    suggestion.votesFor = suggestion.votesFor.filter(id => id !== playerId);
+    suggestion.votesAgainst = suggestion.votesAgainst.filter(id => id !== playerId);
+
+    // Add new vote
+    if (vote) {
+      suggestion.votesFor.push(playerId);
+    } else {
+      suggestion.votesAgainst.push(playerId);
+    }
+
+    // Check for majority (more than half of connected non-CPU players)
+    const eligibleVoters = this.state.players.filter(p => !p.isCPU && p.isConnected).length;
+    const majorityNeeded = Math.floor(eligibleVoters / 2) + 1;
+
+    let applied = false;
+    if (suggestion.votesFor.length >= majorityNeeded) {
+      suggestion.resolved = true;
+      suggestion.applied = true;
+      applied = true;
+
+      // Apply the provisional to the target player
+      const target = this.state.players.find(p => p.id === suggestion.targetId);
+      if (target) {
+        target.provisionals = (target.provisionals || 0) + 1;
+      }
+    } else if (suggestion.votesAgainst.length >= majorityNeeded) {
+      suggestion.resolved = true;
+      suggestion.applied = false;
+    }
+
+    return { suggestion, applied };
   }
 
   // Get state for a specific player (hide other players' hands)

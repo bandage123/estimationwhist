@@ -68,6 +68,10 @@ export default function Game() {
     unreadChatCount,
     sendChat,
     clearUnreadChat,
+    // Provisionals
+    provisionalSuggestions,
+    suggestProvisional,
+    voteProvisional,
   } = useWebSocket();
 
   const { toast } = useToast();
@@ -1362,9 +1366,13 @@ export default function Game() {
           <ChatPanel
             messages={chatMessages}
             currentPlayerId={playerId}
+            players={gameState.players}
             unreadCount={unreadChatCount}
             onSendMessage={sendChat}
             onClearUnread={clearUnreadChat}
+            provisionalSuggestions={provisionalSuggestions}
+            onSuggestProvisional={suggestProvisional}
+            onVoteProvisional={voteProvisional}
           />
         )}
       </div>
