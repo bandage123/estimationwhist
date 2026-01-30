@@ -41,15 +41,18 @@ export function ChatPanel({
   // Get other players (not current player, not CPU)
   const otherPlayers = players.filter(p => p.id !== currentPlayerId && !p.isCPU);
 
-  // Get active (unresolved) provisional suggestions
-  const activeSuggestions = provisionalSuggestions.filter(s => !s.resolved);
+  // Sort provisional suggestions - unresolved first, then by timestamp
+  const sortedSuggestions = [...provisionalSuggestions].sort((a, b) => {
+    if (a.resolved !== b.resolved) return a.resolved ? 1 : -1;
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, activeSuggestions]);
+  }, [messages, sortedSuggestions]);
 
   // Clear unread when opening
   useEffect(() => {
@@ -103,20 +106,40 @@ export function ChatPanel({
     const voted = hasVoted(suggestion);
     const votedFor = currentPlayerId && suggestion.votesFor.includes(currentPlayerId);
     const votedAgainst = currentPlayerId && suggestion.votesAgainst.includes(currentPlayerId);
+    const isResolved = suggestion.resolved;
 
     return (
       <div
         key={suggestion.id}
         className={cn(
-          "rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-2",
+          "rounded-lg border p-2",
+          isResolved
+            ? suggestion.applied
+              ? "border-red-500/50 bg-red-500/10"
+              : "border-muted bg-muted/30"
+            : "border-yellow-500/50 bg-yellow-500/10",
           compact && "p-1.5"
         )}
       >
         <div className="flex items-start gap-2">
-          <AlertTriangle className={cn("text-yellow-500 shrink-0", compact ? "w-3 h-3 mt-0.5" : "w-4 h-4")} />
+          <AlertTriangle className={cn(
+            "shrink-0",
+            compact ? "w-3 h-3 mt-0.5" : "w-4 h-4",
+            isResolved
+              ? suggestion.applied ? "text-red-500" : "text-muted-foreground"
+              : "text-yellow-500"
+          )} />
           <div className="flex-1 min-w-0">
             <p className={cn("font-medium", compact ? "text-xs" : "text-sm")}>
               Provisional against {suggestion.targetName}
+              {isResolved && (
+                <span className={cn(
+                  "ml-2 font-normal",
+                  suggestion.applied ? "text-red-500" : "text-muted-foreground"
+                )}>
+                  - {suggestion.applied ? "Applied" : "Rejected"}
+                </span>
+              )}
             </p>
             <p className={cn("text-muted-foreground", compact ? "text-[10px]" : "text-xs")}>
               by {suggestion.suggesterName}: "{suggestion.reason}"
@@ -125,7 +148,7 @@ export function ChatPanel({
               <span className={cn("text-muted-foreground", compact ? "text-[9px]" : "text-xs")}>
                 {suggestion.votesFor.length} for / {suggestion.votesAgainst.length} against
               </span>
-              {!voted && suggestion.suggesterId !== currentPlayerId && (
+              {!isResolved && !voted && suggestion.suggesterId !== currentPlayerId && (
                 <div className="flex gap-1">
                   <Button
                     size="sm"
@@ -247,10 +270,10 @@ export function ChatPanel({
           </div>
           <div className="flex-1 overflow-hidden">
             <div ref={scrollRef} className="h-full overflow-y-auto p-3 space-y-2">
-              {/* Active provisional suggestions */}
-              {activeSuggestions.map(s => renderProvisionalSuggestion(s))}
+              {/* Provisional suggestions */}
+              {sortedSuggestions.map(s => renderProvisionalSuggestion(s))}
 
-              {messages.length === 0 && activeSuggestions.length === 0 ? (
+              {messages.length === 0 && sortedSuggestions.length === 0 ? (
                 <p className="text-center text-muted-foreground text-sm py-4">
                   No messages yet
                 </p>
@@ -312,10 +335,10 @@ export function ChatPanel({
         </div>
         <ScrollArea className="flex-1 p-2">
           <div className="space-y-2">
-            {/* Active provisional suggestions */}
-            {activeSuggestions.map(s => renderProvisionalSuggestion(s, true))}
+            {/* Provisional suggestions */}
+            {sortedSuggestions.map(s => renderProvisionalSuggestion(s, true))}
 
-            {messages.length === 0 && activeSuggestions.length === 0 ? (
+            {messages.length === 0 && sortedSuggestions.length === 0 ? (
               <p className="text-center text-muted-foreground text-xs py-4">
                 No messages yet
               </p>
