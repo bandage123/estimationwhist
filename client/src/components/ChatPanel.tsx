@@ -223,10 +223,20 @@ export function ChatPanel({
         )}
       </div>
 
-      {/* Mobile chat modal */}
+      {/* Mobile chat modal - bottom half of screen */}
       {isOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-background/95 flex flex-col">
-          <div className="flex items-center justify-between p-3 border-b">
+        <>
+          {/* Backdrop */}
+          <div
+            className="md:hidden fixed inset-0 z-40 bg-black/20"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="md:hidden fixed inset-x-0 bottom-0 h-1/2 z-50 bg-background border-t shadow-lg flex flex-col rounded-t-xl">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-3 pb-2">
             <h2 className="font-semibold flex items-center gap-2">
               <MessageCircle className="w-5 h-5" />
               Chat
@@ -289,6 +299,7 @@ export function ChatPanel({
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* Desktop sidebar */}
