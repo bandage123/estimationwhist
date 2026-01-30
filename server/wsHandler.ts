@@ -766,6 +766,28 @@ export function setupWebSocket(server: Server): void {
             broadcastToGame(game);
             break;
           }
+
+          case "send_chat": {
+            const game = gameManager.getGameForPlayer(client.playerId);
+            if (!game) {
+              sendError(ws, "Game not found");
+              return;
+            }
+
+            const chatMessage = game.sendChat(client.playerId, message.text);
+            if (chatMessage) {
+              // Broadcast the chat message to all players in the game
+              const gameClients = Array.from(clients.entries())
+                .filter(([_, c]) => c.gameId === game.state.id);
+              for (const [clientWs] of gameClients) {
+                sendToClient(clientWs, {
+                  type: "chat_message",
+                  message: chatMessage,
+                });
+              }
+            }
+            break;
+          }
         }
       } catch (error) {
         console.error("WebSocket message error:", error);

@@ -143,6 +143,15 @@ export interface OlympicsState {
   championQuote?: string;
 }
 
+// Chat message for multiplayer
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  timestamp: string;
+}
+
 export interface GameState {
   id: string;
   phase: GamePhase;
@@ -169,6 +178,8 @@ export interface GameState {
   swapDeck?: Card[]; // Remaining deck for swap functionality
   // Multiplayer disconnection handling
   cpuReplacementVotes?: Record<string, string[]>; // disconnectedPlayerId -> array of voter playerIds who voted yes
+  // Multiplayer chat
+  chatMessages?: ChatMessage[];
 }
 
 export interface RoundResult {
@@ -218,7 +229,9 @@ export type ClientMessage =
   | { type: "request_save_state" }
   | { type: "minigame_acknowledge" }  // Acknowledge seeing result, continue to next action
   // Multiplayer disconnection handling
-  | { type: "vote_cpu_replacement"; disconnectedPlayerId: string; vote: boolean };
+  | { type: "vote_cpu_replacement"; disconnectedPlayerId: string; vote: boolean }
+  // Multiplayer chat
+  | { type: "send_chat"; text: string };
 
 export type ServerMessage =
   | { type: "game_created"; gameId: string; playerId: string }
@@ -232,7 +245,9 @@ export type ServerMessage =
   | { type: "player_reconnected"; playerName: string; playerId: string }
   | { type: "cpu_replacement_vote_update"; disconnectedPlayerId: string; disconnectedPlayerName: string; votesNeeded: number; currentVotes: number }
   | { type: "cpu_replacement_activated"; playerName: string }
-  | { type: "save_state"; state: GameState };
+  | { type: "save_state"; state: GameState }
+  // Multiplayer chat
+  | { type: "chat_message"; message: ChatMessage };
 
 // Validation schemas
 export const createGameSchema = z.object({

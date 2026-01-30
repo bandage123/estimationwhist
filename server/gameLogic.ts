@@ -16,6 +16,7 @@ import {
   KellerPlayerState,
   HaloMinigameState,
   BrucieBonusState,
+  ChatMessage,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { generateOlympicsPlayers, generateMatchReport, generateChampionQuote } from "@shared/olympicsData";
@@ -89,6 +90,11 @@ export class Game {
       for (let i = 0; i < Math.min(cpuCount, 6); i++) {
         this.state.players.push(this.createPlayer(CPU_NAMES[i], randomUUID(), true));
       }
+    }
+
+    // Initialize chat for multiplayer games
+    if (!isSinglePlayer) {
+      this.state.chatMessages = [];
     }
 
     // Initialize Keller state if using Keller format
@@ -2110,6 +2116,35 @@ export class Game {
   // Get full unmasked state (for saving)
   getFullState(): GameState {
     return JSON.parse(JSON.stringify(this.state)) as GameState;
+  }
+
+  // Send a chat message (multiplayer only)
+  sendChat(playerId: string, text: string): ChatMessage | null {
+    if (this.state.isSinglePlayer || !this.state.chatMessages) return null;
+
+    const player = this.state.players.find(p => p.id === playerId);
+    if (!player) return null;
+
+    // Sanitize and limit message length
+    const sanitizedText = text.trim().slice(0, 200);
+    if (!sanitizedText) return null;
+
+    const message: ChatMessage = {
+      id: randomUUID(),
+      playerId,
+      playerName: player.name,
+      text: sanitizedText,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.state.chatMessages.push(message);
+
+    // Keep only last 100 messages
+    if (this.state.chatMessages.length > 100) {
+      this.state.chatMessages = this.state.chatMessages.slice(-100);
+    }
+
+    return message;
   }
 
   // Get state for a specific player (hide other players' hands)

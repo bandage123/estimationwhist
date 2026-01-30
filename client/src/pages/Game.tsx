@@ -12,6 +12,7 @@ import { KellerStatusBar } from "@/components/KellerStatusBar";
 import { HaloMinigame } from "@/components/HaloMinigame";
 import { BrucieBonus } from "@/components/BrucieBonus";
 import { RulesDialog } from "@/components/RulesDialog";
+import { ChatPanel } from "@/components/ChatPanel";
 import { Card, Suit, Player, SpeedSetting, GameFormat } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,11 @@ export default function Game() {
     cpuReplacementVote,
     clearDisconnectionNotification,
     voteCpuReplacement,
+    // Chat
+    chatMessages,
+    unreadChatCount,
+    sendChat,
+    clearUnreadChat,
   } = useWebSocket();
 
   const { toast } = useToast();
@@ -1350,6 +1356,17 @@ export default function Game() {
             />
           </div>
         </div>
+
+        {/* Right sidebar - Chat (multiplayer only) */}
+        {!gameState.isSinglePlayer && !gameState.isOlympics && (
+          <ChatPanel
+            messages={chatMessages}
+            currentPlayerId={playerId}
+            unreadCount={unreadChatCount}
+            onSendMessage={sendChat}
+            onClearUnread={clearUnreadChat}
+          />
+        )}
       </div>
     </div>
   );

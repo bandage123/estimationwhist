@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat } from "@shared/schema";
+import { GameState, ClientMessage, ServerMessage, Card, SpeedSetting, GameFormat, ChatMessage } from "@shared/schema";
 import { deleteSavedGame, saveGame, autoSaveGame } from "@/lib/savedGames";
 
 // Disconnection notification state
@@ -57,6 +57,11 @@ interface UseWebSocketReturn {
   minigameAcknowledge: () => void;
   requestState: () => void;
   requestSaveState: (callback: (fullState: GameState) => void) => void;
+  // Multiplayer chat
+  chatMessages: ChatMessage[];
+  unreadChatCount: number;
+  sendChat: (text: string) => void;
+  clearUnreadChat: () => void;
 }
 
 // Session storage keys for reconnection
@@ -75,6 +80,9 @@ export function useWebSocket(): UseWebSocketReturn {
   // Disconnection handling state
   const [disconnectionNotification, setDisconnectionNotification] = useState<DisconnectionNotification | null>(null);
   const [cpuReplacementVote, setCpuReplacementVote] = useState<CpuReplacementVote | null>(null);
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -134,9 +142,7 @@ export function useWebSocket(): UseWebSocketReturn {
             // Store for reconnection
             sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
             sessionStorage.setItem(SESSION_GAME_ID_KEY, message.gameId);
-            // Also persist to localStorage for multiplayer tab-close recovery
-            localStorage.setItem(LOCAL_PLAYER_ID_KEY, message.playerId);
-            localStorage.setItem(LOCAL_GAME_ID_KEY, message.gameId);
+            // Don't set localStorage here - we'll set it in game_state only for multiplayer
             break;
           case "game_joined":
             setPlayerId(message.playerId);
@@ -155,14 +161,21 @@ export function useWebSocket(): UseWebSocketReturn {
             // Store for reconnection
             sessionStorage.setItem(SESSION_PLAYER_ID_KEY, message.playerId);
             sessionStorage.setItem(SESSION_GAME_ID_KEY, message.state.id);
-            localStorage.setItem(LOCAL_PLAYER_ID_KEY, message.playerId);
-            localStorage.setItem(LOCAL_GAME_ID_KEY, message.state.id);
+            // Only persist to localStorage for multiplayer games (for tab-close recovery)
+            if (!message.state.isSinglePlayer && !message.state.isOlympics) {
+              localStorage.setItem(LOCAL_PLAYER_ID_KEY, message.playerId);
+              localStorage.setItem(LOCAL_GAME_ID_KEY, message.state.id);
+            }
             // Clear reconnect flag on successful state receive
             reconnectAttemptedRef.current = false;
             // Delete saved game only after successful restore
             if (pendingSaveDeleteRef.current) {
               deleteSavedGame(pendingSaveDeleteRef.current);
               pendingSaveDeleteRef.current = null;
+            }
+            // Sync chat messages from game state (for reconnection)
+            if (message.state.chatMessages) {
+              setChatMessages(message.state.chatMessages);
             }
             break;
           case "error":
@@ -229,6 +242,10 @@ export function useWebSocket(): UseWebSocketReturn {
             // Clear the vote state and voted tracking
             setCpuReplacementVote(null);
             votedPlayersRef.current.clear();
+            break;
+          case "chat_message":
+            setChatMessages(prev => [...prev, message.message]);
+            setUnreadChatCount(prev => prev + 1);
             break;
         }
       } catch (e) {
@@ -436,6 +453,15 @@ export function useWebSocket(): UseWebSocketReturn {
     }
   }, []);
 
+  // Chat functions
+  const sendChat = useCallback((text: string) => {
+    sendMessage({ type: "send_chat", text });
+  }, [sendMessage]);
+
+  const clearUnreadChat = useCallback(() => {
+    setUnreadChatCount(0);
+  }, []);
+
   return {
     gameState,
     playerId,
@@ -476,5 +502,10 @@ export function useWebSocket(): UseWebSocketReturn {
     minigameAcknowledge,
     requestState,
     requestSaveState,
+    // Multiplayer chat
+    chatMessages,
+    unreadChatCount,
+    sendChat,
+    clearUnreadChat,
   };
 }
