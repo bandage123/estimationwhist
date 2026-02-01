@@ -13,6 +13,7 @@ import { HaloMinigame } from "@/components/HaloMinigame";
 import { BrucieBonus } from "@/components/BrucieBonus";
 import { RulesDialog } from "@/components/RulesDialog";
 import { ChatPanel } from "@/components/ChatPanel";
+import { TableLayout } from "@/components/table";
 import { Card, Suit, Player, SpeedSetting, GameFormat } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -159,6 +160,32 @@ export default function Game() {
     const activePlayer = gameState.players[gameState.currentPlayerIndex];
     return activePlayer?.id === playerId;
   }, [gameState, playerId]);
+
+  // Get opponents (all players except current player) for table layout
+  const opponents = useMemo(() => {
+    if (!gameState || !playerId) return [];
+    return gameState.players.filter(p => p.id !== playerId);
+  }, [gameState, playerId]);
+
+  // Track last trick winner for emotional reactions
+  const [lastTrickWinnerId, setLastTrickWinnerId] = useState<string | null>(null);
+  const prevTrickNumberRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!gameState) return;
+    // When trick number increases, the previous trick was won
+    if (gameState.trickNumber > prevTrickNumberRef.current && gameState.currentTrick.winnerId) {
+      setLastTrickWinnerId(gameState.currentTrick.winnerId);
+      // Clear after 3 seconds
+      const timeout = setTimeout(() => setLastTrickWinnerId(null), 3000);
+      return () => clearTimeout(timeout);
+    }
+    // When trick resets to 1 (new round), reset
+    if (gameState.trickNumber < prevTrickNumberRef.current) {
+      setLastTrickWinnerId(null);
+    }
+    prevTrickNumberRef.current = gameState.trickNumber;
+  }, [gameState?.trickNumber, gameState?.currentTrick.winnerId]);
 
   // Get Keller player state
   const kellerState = useMemo(() => {
@@ -1304,17 +1331,25 @@ export default function Game() {
           {/* Playing phase */}
           {gameState.phase === "playing" && (
             <div className="space-y-2 md:space-y-4">
-              {/* Trick area */}
-              <TrickArea
-                currentTrick={gameState.currentTrick}
-                players={gameState.players}
-                currentPlayerIndex={gameState.currentPlayerIndex}
-                trump={gameState.trump}
-                roundNumber={gameState.currentRound}
-                cardCount={gameState.cardCount}
-                doublePoints={gameState.doublePoints}
-                trickNumber={gameState.trickNumber}
-              />
+              {/* Table layout with opponents and trick area */}
+              <TableLayout
+                opponents={opponents}
+                currentPlayerId={playerId}
+                currentTurnPlayerId={gameState.players[gameState.currentPlayerIndex]?.id || null}
+                lastTrickWinnerId={lastTrickWinnerId}
+              >
+                <TrickArea
+                  currentTrick={gameState.currentTrick}
+                  players={gameState.players}
+                  currentPlayerIndex={gameState.currentPlayerIndex}
+                  trump={gameState.trump}
+                  roundNumber={gameState.currentRound}
+                  cardCount={gameState.cardCount}
+                  doublePoints={gameState.doublePoints}
+                  trickNumber={gameState.trickNumber}
+                  currentPlayerId={playerId}
+                />
+              </TableLayout>
 
               {/* Player's hand */}
               {currentPlayer && (

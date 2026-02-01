@@ -342,4 +342,100 @@
     opacity: 0.03;
     pointer-events: none;
   }
+
+  /* Avatar emotional states */
+  .avatar-frustrated {
+    @apply -translate-y-0.5;
+    transform: translateY(-2px) rotate(-5deg);
+  }
+
+  .avatar-joyous {
+    @apply translate-y-0.5;
+    transform: translateY(2px) rotate(3deg);
+  }
+
+  /* Card play animation - flying to center */
+  @keyframes cardFlyToCenter {
+    0% {
+      opacity: 0.5;
+      transform: scale(0.7);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .card-entering {
+    animation: cardFlyToCenter 300ms ease-out forwards;
+  }
+
+  /* Card from specific positions */
+  @keyframes cardFromTop {
+    0% {
+      opacity: 0.5;
+      transform: translateY(-60px) scale(0.6);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes cardFromLeft {
+    0% {
+      opacity: 0.5;
+      transform: translateX(-80px) scale(0.6);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  @keyframes cardFromRight {
+    0% {
+      opacity: 0.5;
+      transform: translateX(80px) scale(0.6);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+  }
+
+  @keyframes cardFromBottom {
+    0% {
+      opacity: 0.5;
+      transform: translateY(40px) scale(0.6);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .card-from-top {
+    animation: cardFromTop 300ms ease-out forwards;
+  }
+
+  .card-from-left {
+    animation: cardFromLeft 300ms ease-out forwards;
+  }
+
+  .card-from-right {
+    animation: cardFromRight 300ms ease-out forwards;
+  }
+
+  .card-from-bottom {
+    animation: cardFromBottom 300ms ease-out forwards;
+  }
+
+  .card-from-top-left {
+    animation: cardFromTop 300ms ease-out forwards;
+  }
+
+  .card-from-top-right {
+    animation: cardFromTop 300ms ease-out forwards;
+  }
 }
