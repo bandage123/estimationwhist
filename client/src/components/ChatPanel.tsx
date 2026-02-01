@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageCircle, Send, X, AlertTriangle, ThumbsUp, ThumbsDown, Check } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { MessageCircle, Send, X, AlertTriangle, ThumbsUp, ThumbsDown, Check, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatPanelProps {
@@ -17,6 +18,10 @@ interface ChatPanelProps {
   provisionalSuggestions: ProvisionalSuggestion[];
   onSuggestProvisional: (targetId: string, reason: string) => void;
   onVoteProvisional: (suggestionId: string, vote: boolean) => void;
+  // CPU chat mode props
+  cpuChatMode?: boolean;
+  cpuChatEnabled?: boolean;
+  onToggleCpuChat?: (enabled: boolean) => void;
 }
 
 export function ChatPanel({
@@ -29,6 +34,9 @@ export function ChatPanel({
   provisionalSuggestions,
   onSuggestProvisional,
   onVoteProvisional,
+  cpuChatMode = false,
+  cpuChatEnabled = true,
+  onToggleCpuChat,
 }: ChatPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -261,21 +269,42 @@ export function ChatPanel({
             </div>
             <div className="flex items-center justify-between px-3 pb-2">
             <h2 className="font-semibold flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              Chat
+              {cpuChatMode ? <Bot className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+              {cpuChatMode ? "CPU Chat" : "Chat"}
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
-              <X className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {cpuChatMode && onToggleCpuChat && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {cpuChatEnabled ? "On" : "Off"}
+                  </span>
+                  <Switch
+                    checked={cpuChatEnabled}
+                    onCheckedChange={onToggleCpuChat}
+                  />
+                </div>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
           <div className="flex-1 overflow-hidden">
             <div ref={scrollRef} className="h-full overflow-y-auto p-3 space-y-2">
-              {/* Provisional suggestions */}
-              {sortedSuggestions.map(s => renderProvisionalSuggestion(s))}
+              {/* Provisional suggestions (not in CPU chat mode) */}
+              {!cpuChatMode && sortedSuggestions.map(s => renderProvisionalSuggestion(s))}
 
-              {messages.length === 0 && sortedSuggestions.length === 0 ? (
+              {cpuChatMode && !cpuChatEnabled ? (
                 <p className="text-center text-muted-foreground text-sm py-4">
-                  No messages yet
+                  CPU chat is disabled
+                </p>
+              ) : messages.length === 0 && (!cpuChatMode && sortedSuggestions.length === 0) ? (
+                <p className="text-center text-muted-foreground text-sm py-4">
+                  {cpuChatMode ? "CPUs will comment during the game" : "No messages yet"}
+                </p>
+              ) : messages.length === 0 && cpuChatMode ? (
+                <p className="text-center text-muted-foreground text-sm py-4">
+                  CPUs will comment during the game
                 </p>
               ) : (
                 messages.map((msg) => (
@@ -284,13 +313,14 @@ export function ChatPanel({
                     message={msg}
                     isOwnMessage={msg.playerId === currentPlayerId}
                     formatTime={formatTime}
+                    isCPU={cpuChatMode && msg.playerId !== currentPlayerId}
                   />
                 ))
               )}
             </div>
           </div>
           <div className="p-3 border-t space-y-2">
-            {showProvisionalForm ? (
+            {showProvisionalForm && !cpuChatMode ? (
               renderProvisionalForm()
             ) : (
               <>
@@ -300,14 +330,15 @@ export function ChatPanel({
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type a message..."
+                    placeholder={cpuChatMode ? "Chat with CPUs..." : "Type a message..."}
                     maxLength={200}
+                    disabled={cpuChatMode && !cpuChatEnabled}
                   />
-                  <Button onClick={handleSend} disabled={!inputValue.trim()}>
+                  <Button onClick={handleSend} disabled={!inputValue.trim() || (cpuChatMode && !cpuChatEnabled)}>
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
-                {otherPlayers.length > 0 && (
+                {!cpuChatMode && otherPlayers.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -328,19 +359,41 @@ export function ChatPanel({
       {/* Desktop sidebar */}
       <div className="hidden md:flex flex-col w-64 border-l bg-card h-full">
         <div className="p-3 border-b">
-          <h2 className="font-semibold flex items-center gap-2 text-sm">
-            <MessageCircle className="w-4 h-4" />
-            Chat
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold flex items-center gap-2 text-sm">
+              {cpuChatMode ? <Bot className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
+              {cpuChatMode ? "CPU Chat" : "Chat"}
+            </h2>
+            {cpuChatMode && onToggleCpuChat && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">
+                  {cpuChatEnabled ? "On" : "Off"}
+                </span>
+                <Switch
+                  checked={cpuChatEnabled}
+                  onCheckedChange={onToggleCpuChat}
+                  className="scale-75"
+                />
+              </div>
+            )}
+          </div>
         </div>
         <ScrollArea className="flex-1 p-2">
           <div className="space-y-2">
-            {/* Provisional suggestions */}
-            {sortedSuggestions.map(s => renderProvisionalSuggestion(s, true))}
+            {/* Provisional suggestions (not in CPU chat mode) */}
+            {!cpuChatMode && sortedSuggestions.map(s => renderProvisionalSuggestion(s, true))}
 
-            {messages.length === 0 && sortedSuggestions.length === 0 ? (
+            {cpuChatMode && !cpuChatEnabled ? (
               <p className="text-center text-muted-foreground text-xs py-4">
-                No messages yet
+                CPU chat is disabled
+              </p>
+            ) : messages.length === 0 && (!cpuChatMode && sortedSuggestions.length === 0) ? (
+              <p className="text-center text-muted-foreground text-xs py-4">
+                {cpuChatMode ? "CPUs will comment during the game" : "No messages yet"}
+              </p>
+            ) : messages.length === 0 && cpuChatMode ? (
+              <p className="text-center text-muted-foreground text-xs py-4">
+                CPUs will comment during the game
               </p>
             ) : (
               messages.map((msg) => (
@@ -350,13 +403,14 @@ export function ChatPanel({
                   isOwnMessage={msg.playerId === currentPlayerId}
                   formatTime={formatTime}
                   compact
+                  isCPU={cpuChatMode && msg.playerId !== currentPlayerId}
                 />
               ))
             )}
           </div>
         </ScrollArea>
         <div className="p-2 border-t space-y-1.5">
-          {showProvisionalForm ? (
+          {showProvisionalForm && !cpuChatMode ? (
             renderProvisionalForm(true)
           ) : (
             <>
@@ -365,15 +419,16 @@ export function ChatPanel({
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Message..."
+                  placeholder={cpuChatMode ? "Chat with CPUs..." : "Message..."}
                   maxLength={200}
                   className="text-sm h-7"
+                  disabled={cpuChatMode && !cpuChatEnabled}
                 />
-                <Button size="sm" className="h-7" onClick={handleSend} disabled={!inputValue.trim()}>
+                <Button size="sm" className="h-7" onClick={handleSend} disabled={!inputValue.trim() || (cpuChatMode && !cpuChatEnabled)}>
                   <Send className="w-3 h-3" />
                 </Button>
               </div>
-              {otherPlayers.length > 0 && (
+              {!cpuChatMode && otherPlayers.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -397,9 +452,10 @@ interface ChatBubbleProps {
   isOwnMessage: boolean;
   formatTime: (timestamp: string) => string;
   compact?: boolean;
+  isCPU?: boolean;
 }
 
-function ChatBubble({ message, isOwnMessage, formatTime, compact }: ChatBubbleProps) {
+function ChatBubble({ message, isOwnMessage, formatTime, compact, isCPU }: ChatBubbleProps) {
   return (
     <div
       className={cn(
@@ -412,15 +468,18 @@ function ChatBubble({ message, isOwnMessage, formatTime, compact }: ChatBubblePr
           "rounded-lg px-3 py-1.5 max-w-[85%]",
           isOwnMessage
             ? "bg-primary text-primary-foreground"
-            : "bg-muted",
+            : isCPU
+              ? "bg-purple-500/20 border border-purple-500/30"
+              : "bg-muted",
           compact && "px-2 py-1"
         )}
       >
         {!isOwnMessage && (
           <p className={cn(
-            "font-medium text-xs mb-0.5",
-            isOwnMessage ? "text-primary-foreground/80" : "text-muted-foreground"
+            "font-medium text-xs mb-0.5 flex items-center gap-1",
+            isOwnMessage ? "text-primary-foreground/80" : isCPU ? "text-purple-400" : "text-muted-foreground"
           )}>
+            {isCPU && <Bot className="w-3 h-3" />}
             {message.playerName}
           </p>
         )}

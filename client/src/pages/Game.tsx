@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useCPUChat } from "@/hooks/useCPUChat";
 import { LobbyCreate, LobbyWaiting } from "@/components/Lobby";
 import { DealerDetermination } from "@/components/DealerDetermination";
 import { CallDialog } from "@/components/CallDialog";
@@ -82,6 +83,29 @@ export default function Game() {
   const [swapMode, setSwapMode] = useState(false);
   const [cardToSwap, setCardToSwap] = useState<Card | null>(null); // Card selected for swap, awaiting confirmation
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  // CPU Chat for single player and tournaments
+  const [cpuChatEnabled, setCpuChatEnabled] = useState(() => {
+    const stored = localStorage.getItem("whist_cpu_chat_enabled");
+    return stored !== "false"; // Default to enabled
+  });
+
+  const toggleCpuChat = (enabled: boolean) => {
+    setCpuChatEnabled(enabled);
+    localStorage.setItem("whist_cpu_chat_enabled", enabled.toString());
+  };
+
+  const isSinglePlayerOrTournament = gameState?.isSinglePlayer || gameState?.isOlympics;
+
+  const {
+    messages: cpuChatMessages,
+    sendMessage: sendCpuChatMessage,
+    clearMessages: clearCpuChatMessages,
+  } = useCPUChat({
+    gameState,
+    playerId,
+    enabled: cpuChatEnabled && !!isSinglePlayerOrTournament,
+  });
 
   // Track game settings for "Play Again"
   const lastGameSettingsRef = useRef<{
@@ -1400,7 +1424,8 @@ export default function Game() {
           </div>
         </div>
 
-        {/* Right sidebar - Chat (multiplayer only) */}
+        {/* Right sidebar - Chat */}
+        {/* Multiplayer: real chat with provisionals */}
         {!gameState.isSinglePlayer && !gameState.isOlympics && (
           <ChatPanel
             messages={chatMessages}
@@ -1412,6 +1437,23 @@ export default function Game() {
             provisionalSuggestions={provisionalSuggestions}
             onSuggestProvisional={suggestProvisional}
             onVoteProvisional={voteProvisional}
+          />
+        )}
+        {/* Single player / Tournament: CPU chat */}
+        {(gameState.isSinglePlayer || gameState.isOlympics) && (
+          <ChatPanel
+            messages={cpuChatMessages}
+            currentPlayerId={playerId}
+            players={gameState.players}
+            unreadCount={0}
+            onSendMessage={sendCpuChatMessage}
+            onClearUnread={() => {}}
+            provisionalSuggestions={[]}
+            onSuggestProvisional={() => {}}
+            onVoteProvisional={() => {}}
+            cpuChatMode
+            cpuChatEnabled={cpuChatEnabled}
+            onToggleCpuChat={toggleCpuChat}
           />
         )}
       </div>
