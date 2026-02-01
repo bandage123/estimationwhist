@@ -6,7 +6,7 @@ interface PlayingCardProps {
   onClick?: () => void;
   disabled?: boolean;
   selected?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   faceDown?: boolean;
   hidden?: boolean; // For blind mode - shows question mark
 }
@@ -26,6 +26,7 @@ const suitColors: Record<Suit, string> = {
 };
 
 const sizeClasses = {
+  xs: "w-9 h-[54px] text-[10px]",  // 36x54 - fits 7+ cards on mobile
   sm: "w-12 h-[72px] text-xs",
   md: "w-16 h-24 text-sm",
   lg: "w-20 h-32 text-base",

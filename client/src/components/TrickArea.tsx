@@ -144,7 +144,7 @@ export function TrickArea({
 
       <div className="flex-1 flex items-center justify-center">
         {currentTrick.cards.length > 0 ? (
-          <div className="flex gap-0.5 md:gap-2 flex-wrap justify-center">
+          <div className="flex gap-0.5 md:gap-2 justify-center">
             {currentTrick.cards.map(({ playerId, card }, index) => {
               const player = players.find(p => p.id === playerId);
               const cardKey = `${playerId}-${index}`;
@@ -155,11 +155,11 @@ export function TrickArea({
 
               return (
                 <div key={index} className={cn("flex flex-col items-center gap-0", animationClass)}>
-                  <span className="text-[9px] md:text-xs text-foreground/80 font-medium truncate max-w-[40px] md:max-w-none">
+                  <span className="text-[7px] md:text-xs text-foreground/80 font-medium truncate max-w-[36px] md:max-w-none">
                     {player?.name || "?"}
                   </span>
                   <div className="md:hidden">
-                    <PlayingCard card={card} size="sm" />
+                    <PlayingCard card={card} size="xs" />
                   </div>
                   <div className="hidden md:block">
                     <PlayingCard card={card} size="md" />
