@@ -1064,7 +1064,7 @@ export default function Game() {
   // Main game layout for calling and playing phases
   // Always show scoreboard on left, gameplay on right
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       {/* Top bar with return to menu */}
       <div className="p-2 border-b flex items-center justify-between shrink-0">
         <Button
@@ -1122,7 +1122,7 @@ export default function Game() {
       </div>
 
       {/* Main content with sidebar */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-full">
         {/* Left sidebar - Scoreboard (desktop only) */}
         <div className="hidden md:block w-64 shrink-0 border-r overflow-y-auto p-1">
           <ScoreBoard
@@ -1134,7 +1134,7 @@ export default function Game() {
         </div>
 
         {/* Main game area */}
-        <div className="flex-1 overflow-y-auto p-1 md:p-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 md:p-4 min-w-0">
           {/* Keller Status Bar */}
           {gameState.gameFormat === "keller" && kellerState && (gameState.phase === "calling" || gameState.phase === "playing") && (
             <div className="mb-2">
