@@ -54,16 +54,16 @@ export function OpponentPosition({
 
   const cardCount = player.hand.length;
 
-  // Mobile compact view - just a small head with minimal info
+  // Mobile compact view - tiny head on the side
   if (compact) {
     return (
       <div
         className={cn(
-          "flex flex-col items-center gap-0.5 transition-all duration-300",
+          "flex flex-col items-center w-7 transition-all duration-300",
           isCurrentTurn && "scale-110"
         )}
       >
-        {/* Small avatar head */}
+        {/* Tiny avatar head */}
         <PlayerAvatar
           style={avatarStyle}
           emotion={emotion}
@@ -71,25 +71,23 @@ export function OpponentPosition({
           className={cn(isCurrentTurn && "ring-1 ring-primary rounded")}
         />
 
-        {/* Name and stats in one line */}
-        <div className="text-center">
-          <div
-            className={cn(
-              "font-medium truncate max-w-[50px] text-[8px] leading-tight",
-              isCurrentTurn && "text-primary"
-            )}
-            title={player.name}
-          >
-            {player.name}
-          </div>
-          <div className={cn(
-            "text-[7px] leading-tight",
-            player.call !== null && player.tricksWon === player.call && "text-green-500",
-            player.call !== null && player.tricksWon > player.call && "text-red-500",
-            player.call === null && "text-muted-foreground"
-          )}>
-            {player.call !== null ? `${player.tricksWon}/${player.call}` : `${cardCount}♠`}
-          </div>
+        {/* Minimal info below */}
+        <div
+          className={cn(
+            "text-[6px] font-medium truncate w-full text-center leading-tight",
+            isCurrentTurn && "text-primary"
+          )}
+          title={player.name}
+        >
+          {player.name.slice(0, 4)}
+        </div>
+        <div className={cn(
+          "text-[6px] leading-tight font-bold",
+          player.call !== null && player.tricksWon === player.call && "text-green-500",
+          player.call !== null && player.tricksWon > player.call && "text-red-500",
+          player.call === null && "text-muted-foreground"
+        )}>
+          {player.call !== null ? `${player.tricksWon}/${player.call}` : cardCount}
         </div>
       </div>
     );

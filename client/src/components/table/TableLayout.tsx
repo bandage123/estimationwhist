@@ -84,27 +84,48 @@ export function TableLayout({
     </div>
   );
 
-  // Mobile layout - small avatars spaced horizontally
+  // Mobile layout - avatars on sides and corners, not above
   const mobileLayout = (
-    <div className={cn("md:hidden flex flex-col", className)}>
-      {/* Opponents in a row above - evenly spaced */}
-      <div className="flex justify-around items-start py-1 px-1 mb-1">
-        {opponents.map((player) => (
-          <OpponentPosition
-            key={player.id}
-            player={player}
-            position="top"
-            isCurrentTurn={player.id === currentTurnPlayerId}
-            justWonTrick={player.id === lastTrickWinnerId}
-            compact
-          />
-        ))}
-      </div>
-
-      {/* TrickArea below */}
-      <div className="flex-1">
+    <div className={cn("md:hidden relative", className)}>
+      {/* Main content area with side margins for avatars */}
+      <div className="mx-8">
         {children}
       </div>
+
+      {/* Position avatars around the sides */}
+      {opponents.length >= 1 && (
+        <div className="absolute top-2 left-0.5">
+          <OpponentPosition
+            player={opponents[0]}
+            position="top-left"
+            isCurrentTurn={opponents[0].id === currentTurnPlayerId}
+            justWonTrick={opponents[0].id === lastTrickWinnerId}
+            compact
+          />
+        </div>
+      )}
+      {opponents.length >= 2 && (
+        <div className="absolute top-2 right-0.5">
+          <OpponentPosition
+            player={opponents[1]}
+            position="top-right"
+            isCurrentTurn={opponents[1].id === currentTurnPlayerId}
+            justWonTrick={opponents[1].id === lastTrickWinnerId}
+            compact
+          />
+        </div>
+      )}
+      {opponents.length >= 3 && (
+        <div className="absolute bottom-2 right-0.5">
+          <OpponentPosition
+            player={opponents[2]}
+            position="bottom-right"
+            isCurrentTurn={opponents[2].id === currentTurnPlayerId}
+            justWonTrick={opponents[2].id === lastTrickWinnerId}
+            compact
+          />
+        </div>
+      )}
     </div>
   );
 
