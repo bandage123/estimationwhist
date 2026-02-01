@@ -2,7 +2,6 @@ import { Card, Player, Suit, Trick } from "@shared/schema";
 import { PlayingCard } from "./PlayingCard";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Bot } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 
 interface TrickAreaProps {
@@ -143,50 +142,43 @@ export function TrickArea({
       </div>
 
       <div className="flex-1 flex items-center justify-center">
-        {currentTrick.cards.length > 0 ? (
-          <div className="flex gap-0.5 md:gap-2 justify-center">
-            {currentTrick.cards.map(({ playerId, card }, index) => {
-              const player = players.find(p => p.id === playerId);
-              const cardKey = `${playerId}-${index}`;
-              const isNewCard = !animatedCards.has(cardKey);
-              const animationClass = isNewCard
-                ? getCardAnimationClass(playerId, currentPlayerId, players)
-                : "";
+        {/* Fixed slots for all players - cards don't shift once placed */}
+        <div className="flex gap-0.5 md:gap-2">
+          {players.map((player) => {
+            // Find if this player has played a card in the current trick
+            const playedCard = currentTrick.cards.find(c => c.playerId === player.id);
+            const cardIndex = currentTrick.cards.findIndex(c => c.playerId === player.id);
+            const cardKey = playedCard ? `${player.id}-${cardIndex}` : null;
+            const isNewCard = cardKey && !animatedCards.has(cardKey);
+            const animationClass = isNewCard
+              ? getCardAnimationClass(player.id, currentPlayerId, players)
+              : "";
 
-              return (
-                <div key={index} className={cn("flex flex-col items-center gap-0", animationClass)}>
-                  <span className="text-[7px] md:text-xs text-foreground/80 font-medium truncate max-w-[36px] md:max-w-none">
-                    {player?.name || "?"}
-                  </span>
-                  <div className="md:hidden">
-                    <PlayingCard card={card} size="xs" />
-                  </div>
-                  <div className="hidden md:block">
-                    <PlayingCard card={card} size="md" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center text-muted-foreground">
-            <p className="text-sm md:text-lg">Waiting for cards...</p>
-            {currentPlayer && (
-              <p className="text-xs md:text-sm mt-1 flex items-center justify-center gap-1">
-                <span className="font-semibold text-primary">
-                  {currentPlayer.name}
+            return (
+              <div key={player.id} className={cn("flex flex-col items-center gap-0", playedCard ? animationClass : "")}>
+                <span className="text-[7px] md:text-xs text-foreground/80 font-medium truncate max-w-[36px] md:max-w-none">
+                  {player.name}
                 </span>
-                {currentPlayer.isCPUControlled && (
-                  <span className="inline-flex items-center gap-0.5 text-orange-500">
-                    <Bot className="w-3 h-3" />
-                    <span className="text-[10px]">(CPU)</span>
-                  </span>
+                {playedCard ? (
+                  <>
+                    <div className="md:hidden">
+                      <PlayingCard card={playedCard.card} size="xs" />
+                    </div>
+                    <div className="hidden md:block">
+                      <PlayingCard card={playedCard.card} size="md" />
+                    </div>
+                  </>
+                ) : (
+                  // Empty slot placeholder - same size as card
+                  <>
+                    <div className="md:hidden w-9 h-[54px] rounded border border-dashed border-white/20" />
+                    <div className="hidden md:block w-16 h-24 rounded border border-dashed border-white/20" />
+                  </>
                 )}
-                <span> to play</span>
-              </p>
-            )}
-          </div>
-        )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {currentTrick.leadSuit && (
