@@ -14,6 +14,7 @@ import { BrucieBonus } from "@/components/BrucieBonus";
 import { RulesDialog } from "@/components/RulesDialog";
 import { ChatPanel } from "@/components/ChatPanel";
 import { TableLayout } from "@/components/table";
+import { GameEndEffects } from "@/components/GameEndEffects";
 import { Card, Suit, Player, SpeedSetting, GameFormat } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -844,9 +845,10 @@ export default function Game() {
     if (isOlympics && olympics.currentPhase === "complete") {
       const champion = gameState.allOlympicsPlayers?.find(p => p.id === olympics.grandChampionId);
       const isChampion = olympics.grandChampionId === playerId;
-      
+
       return (
         <div className="min-h-screen bg-background flex flex-col">
+          <GameEndEffects players={gameState.players} currentPlayerId={playerId} />
           <div className="p-2 border-b flex items-center justify-between">
             <Button
               variant="ghost"
@@ -914,9 +916,10 @@ export default function Game() {
     if (isOlympics) {
       const isQualifying = olympics.currentPhase === "qualifying";
       const isFinals = olympics.currentPhase === "finals";
-      
+
       return (
         <div className="min-h-screen bg-background flex flex-col">
+          <GameEndEffects players={gameState.players} currentPlayerId={playerId} />
           <div className="p-2 border-b flex items-center justify-between">
             <Button
               variant="ghost"
@@ -988,6 +991,7 @@ export default function Game() {
     // Regular game end
     return (
       <div className="min-h-screen bg-background">
+        <GameEndEffects players={gameState.players} currentPlayerId={playerId} />
         <div className="p-2 border-b flex items-center justify-between">
           <Button
             variant="ghost"
