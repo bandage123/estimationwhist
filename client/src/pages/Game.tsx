@@ -172,7 +172,7 @@ export default function Game() {
   const prevTrickNumberRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!gameState) return;
+    if (!gameState || !gameState.currentTrick) return;
     // When trick number increases, the previous trick was won
     if (gameState.trickNumber > prevTrickNumberRef.current && gameState.currentTrick.winnerId) {
       setLastTrickWinnerId(gameState.currentTrick.winnerId);
@@ -185,7 +185,7 @@ export default function Game() {
       setLastTrickWinnerId(null);
     }
     prevTrickNumberRef.current = gameState.trickNumber;
-  }, [gameState?.trickNumber, gameState?.currentTrick.winnerId]);
+  }, [gameState?.trickNumber, gameState?.currentTrick?.winnerId]);
 
   // Get Keller player state
   const kellerState = useMemo(() => {

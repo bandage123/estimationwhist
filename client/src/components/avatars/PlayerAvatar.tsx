@@ -4,13 +4,14 @@ import { AvatarStyle, Emotion, HatType, Hairstyle, BodyVariant } from "./avatarS
 interface PlayerAvatarProps {
   style: AvatarStyle;
   emotion?: Emotion;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }
 
 const sizeClasses = {
-  sm: "w-10 h-12",   // 40x48
-  md: "w-16 h-20",   // 64x80
+  xs: "w-6 h-8",     // 24x32 - mobile compact
+  sm: "w-8 h-10",    // 32x40
+  md: "w-14 h-18",   // 56x72
   lg: "w-20 h-24",   // 80x96
 };
 

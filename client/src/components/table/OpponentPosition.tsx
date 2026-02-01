@@ -3,7 +3,7 @@ import { PlayerAvatar, getAvatarStyle, checkEmotionTrigger, Emotion } from "../a
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 
-export type Position = "top" | "top-left" | "top-right" | "left" | "right";
+export type Position = "top" | "top-left" | "top-right" | "left" | "right" | "bottom-left" | "bottom-right";
 
 interface OpponentPositionProps {
   player: Player;
@@ -52,38 +52,68 @@ export function OpponentPosition({
     };
   }, [player.id, player.tricksWon, player.call, player.hand.length, justWonTrick]);
 
-  const positionClasses: Record<Position, string> = {
-    top: "top-1 left-1/2 -translate-x-1/2",
-    "top-left": "top-2 left-[15%]",
-    "top-right": "top-2 right-[15%]",
-    left: "top-1/3 left-1",
-    right: "top-1/3 right-1",
-  };
-
   const cardCount = player.hand.length;
 
+  // Mobile compact view - just a small head with minimal info
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center gap-0.5 transition-all duration-300",
+          isCurrentTurn && "scale-110"
+        )}
+      >
+        {/* Small avatar head */}
+        <PlayerAvatar
+          style={avatarStyle}
+          emotion={emotion}
+          size="xs"
+          className={cn(isCurrentTurn && "ring-1 ring-primary rounded")}
+        />
+
+        {/* Name and stats in one line */}
+        <div className="text-center">
+          <div
+            className={cn(
+              "font-medium truncate max-w-[50px] text-[8px] leading-tight",
+              isCurrentTurn && "text-primary"
+            )}
+            title={player.name}
+          >
+            {player.name}
+          </div>
+          <div className={cn(
+            "text-[7px] leading-tight",
+            player.call !== null && player.tricksWon === player.call && "text-green-500",
+            player.call !== null && player.tricksWon > player.call && "text-red-500",
+            player.call === null && "text-muted-foreground"
+          )}>
+            {player.call !== null ? `${player.tricksWon}/${player.call}` : `${cardCount}♠`}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop view - full info with card backs
   return (
     <div
       className={cn(
-        "absolute flex flex-col items-center gap-0.5 transition-all duration-300",
-        positionClasses[position],
-        isCurrentTurn && "scale-105"
+        "flex flex-col items-center gap-1 p-2 rounded-lg transition-all duration-300",
+        isCurrentTurn && "bg-primary/10 ring-1 ring-primary"
       )}
-      data-position={position}
     >
       {/* Avatar */}
       <PlayerAvatar
         style={avatarStyle}
         emotion={emotion}
-        size={compact ? "sm" : "md"}
-        className={cn(isCurrentTurn && "ring-2 ring-primary ring-offset-1 rounded-lg")}
+        size="md"
       />
 
       {/* Player name */}
       <div
         className={cn(
-          "text-center font-medium truncate max-w-[80px]",
-          compact ? "text-[9px]" : "text-xs",
+          "text-center font-medium truncate max-w-[100px] text-xs",
           isCurrentTurn && "text-primary"
         )}
         title={player.name}
@@ -91,40 +121,37 @@ export function OpponentPosition({
         {player.name}
       </div>
 
-      {/* Card count and call info */}
-      <div className={cn("flex items-center gap-1", compact ? "text-[8px]" : "text-[10px]")}>
-        {/* Card backs showing remaining cards */}
-        {!compact && cardCount > 0 && (
-          <div className="flex -space-x-2">
-            {Array.from({ length: Math.min(cardCount, 7) }).map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "w-3 h-4 rounded-sm bg-gradient-to-br from-blue-600 to-blue-800 border border-blue-400/50",
-                  "transition-all duration-300"
-                )}
-                style={{ zIndex: i }}
-              />
-            ))}
-          </div>
-        )}
+      {/* Card backs showing remaining cards */}
+      {cardCount > 0 && (
+        <div className="flex justify-center -space-x-1.5">
+          {Array.from({ length: Math.min(cardCount, 7) }).map((_, i) => (
+            <div
+              key={i}
+              className="w-3 h-4 rounded-sm bg-gradient-to-br from-blue-600 to-blue-800 border border-blue-400/50 shadow-sm"
+              style={{ zIndex: i }}
+            />
+          ))}
+          {cardCount > 7 && (
+            <span className="text-[8px] text-muted-foreground ml-1">+{cardCount - 7}</span>
+          )}
+        </div>
+      )}
 
-        {/* Compact: just show count */}
-        {compact && (
-          <span className="text-muted-foreground">
-            {cardCount} cards
-          </span>
-        )}
-
-        {/* Call/tricks display */}
-        {player.call !== null && (
-          <span className={cn(
-            "text-muted-foreground",
+      {/* Call/tricks display - prominent */}
+      <div className="text-center">
+        {player.call !== null ? (
+          <div className={cn(
+            "text-sm font-bold",
             player.tricksWon === player.call && "text-green-500",
-            player.tricksWon > player.call && "text-red-500"
+            player.tricksWon > player.call && "text-red-500",
+            player.tricksWon < player.call && "text-foreground"
           )}>
-            ({player.tricksWon}/{player.call})
-          </span>
+            {player.tricksWon}/{player.call}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">
+            {cardCount} cards
+          </div>
         )}
       </div>
     </div>
